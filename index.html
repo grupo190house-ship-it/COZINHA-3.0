@@ -63,13 +63,13 @@
           </div>
           <div id="toastHost" class="toast-container position-fixed top-0 end-0 p-3"></div>
           <div class="modal fade" id="appModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><span class="eyebrow" id="modalEyebrow"></span><h5 class="modal-title" id="modalTitle"></h5></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div><div class="modal-body" id="modalBody"></div><div class="modal-footer" id="modalFooter"></div></div></div></div>
-          <div class="firebase-status">Firebase conectado</div>`;
+          <div class="firebase-status">Firebase + Google Drive</div>`;
         await Promise.all([
           mount('#loginMount','login.html'), mount('#sidebarMount','sidebar.html'), mount('#navbarMount','navbar.html'), mount('#footerMount','footer.html'), mount('#mobileNavMount','mobile-nav.html')
         ]);
         const pages=['dashboard','tarefas','estoque','insumos','produtos','producao','compras','fornecedores','inventario','perdas','relatorios','operadores','auditoria','configuracoes','perfil'];
         document.getElementById('pageContent').innerHTML=(await Promise.all(pages.map(name=>fetchText(`${name}.html`)))).join('\n');
-        for(const file of ['firebase-adapter.html','utils-js.html','app-js.html','tarefas-js.html','dashboard-js.html','estoque-js.html','compras-js.html','inventario-js.html','login-js.html']) await insertScriptFragment(file);
+        for(const file of ['firebase-adapter.html','drive-adapter.html','utils-js.html','app-js.html','tarefas-js.html','dashboard-js.html','estoque-js.html','compras-js.html','inventario-js.html','login-js.html']) await insertScriptFragment(file);
         await App.boot();
       }
       boot().catch(fail);
