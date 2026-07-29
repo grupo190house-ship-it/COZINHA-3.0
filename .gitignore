@@ -1,0 +1,14 @@
+# Dependências e relatórios locais
+node_modules/
+coverage/
+*.log
+
+# Credenciais e vínculo privado do Google Apps Script
+.clasp.json
+.clasprc.json
+
+# Sistema e editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

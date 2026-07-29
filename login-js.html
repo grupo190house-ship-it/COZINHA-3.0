@@ -1,0 +1,63 @@
+<script>
+  const Login = (() => {
+    function publicCall(method, payload) {
+      return new Promise((resolve, reject) => {
+        const runner = google.script.run
+          .withSuccessHandler(response => response?.ok === false ? reject(new Error(response.error)) : resolve(response?.data ?? response))
+          .withFailureHandler(error => reject(new Error(error.message || String(error))));
+        runner[method](payload);
+      });
+    }
+    function show(installed, bootstrap) {
+      document.getElementById('bootLoader').classList.add('d-none');
+      document.getElementById('loginScreen').classList.remove('d-none');
+      document.getElementById('loginCompany').textContent = bootstrap.companyName || 'Cozinha Industrial';
+      document.getElementById('loginVersion').textContent = bootstrap.version || '1.2.0';
+      document.getElementById('loginView').classList.toggle('d-none', !installed);
+      document.getElementById('setupView').classList.toggle('d-none', installed);
+    }
+    function bind() {
+      document.getElementById('toggleLoginPassword').onclick = event => {
+        const input = document.getElementById('loginPassword');
+        const visible = input.type === 'text';
+        input.type = visible ? 'password' : 'text';
+        event.currentTarget.querySelector('.material-symbols-rounded').textContent = visible ? 'visibility' : 'visibility_off';
+        event.currentTarget.setAttribute('aria-label', visible ? 'Mostrar senha' : 'Ocultar senha');
+      };
+      document.getElementById('loginForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = event.currentTarget.querySelector('button[type=submit]');
+        UI.loading(button, true, 'Entrando...');
+        try {
+          const data = UI.formObject(event.currentTarget);
+          const result = await publicCall('publicLogin', data);
+          App.setToken(result.token, result.remember);
+          await App.start();
+          UI.toast(`Bem-vindo, ${result.user.name}!`);
+        } catch (error) { UI.toast(error.message, 'danger'); }
+        finally { UI.loading(button, false); }
+      });
+      document.getElementById('setupForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = event.currentTarget.querySelector('button[type=submit]');
+        UI.loading(button, true, 'Criando ambiente...');
+        try {
+          await publicCall('publicSetup', UI.formObject(event.currentTarget));
+          UI.toast('Ambiente criado. Faça seu primeiro acesso.');
+          const bootstrap = await publicCall('publicBootstrap');
+          show(true, bootstrap);
+        } catch (error) { UI.toast(error.message, 'danger'); }
+        finally { UI.loading(button, false); }
+      });
+      document.getElementById('forgotButton').onclick = () => {
+        const email = document.getElementById('loginEmail').value;
+        UI.openModal({
+          title: 'Recuperar acesso', eyebrow: 'Segurança', formId: 'forgotForm', submitText: 'Enviar solicitação',
+          body: `<form id="forgotForm"><label class="form-label">Email cadastrado</label><input name="email" type="email" value="${UI.esc(email)}" class="form-control" required><p class="text-secondary small mt-3">A administração receberá uma notificação para redefinir sua senha.</p></form>`,
+          onSubmit: async data => { await publicCall('publicForgotPassword', data); UI.toast('Solicitação registrada.'); }
+        });
+      };
+    }
+    return { publicCall, show, bind };
+  })();
+</script>

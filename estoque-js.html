@@ -1,0 +1,393 @@
+<script>
+  (() => {
+    const cache = { inputs: [], products: [], productions: [], losses: [], stock: null };
+    const field = (name, label, value = '', type = 'text', col = 6, extra = '') => `<div class="col-md-${col}"><label class="form-label">${UI.esc(label)}</label><input name="${UI.esc(name)}" type="${type}" value="${UI.esc(value)}" class="form-control" ${extra}></div>`;
+    const selectField = (name, label, items, selected = '', col = 6, extra = '') => `<div class="col-md-${col}"><label class="form-label">${UI.esc(label)}</label><select name="${UI.esc(name)}" class="form-select" ${extra}>${UI.options(items, selected)}</select></div>`;
+    const actions = (id, edit = true, remove = true) => `<div class="d-flex gap-1">${edit ? UI.actionButton('edit', 'Editar', 'edit', id) : ''}${remove ? UI.actionButton('block', 'Inativar', 'delete', id, 'text-danger') : ''}</div>`;
+
+    function renderStockCards() {
+      const host = document.getElementById('stockTable');
+      const query = document.getElementById('stockSearch').value.trim().toLowerCase();
+      const status = document.getElementById('stockStatusFilter').value;
+      const type = cache.stock.type;
+      const rows = cache.stock.items.filter(item => {
+        const matchesQuery = !query || `${item.CODIGO} ${item.NOME} ${item.CATEGORIA}`.toLowerCase().includes(query);
+        const matchesStatus = status === 'all' ||
+          (status === 'low' && item.ABAIXO_MINIMO) ||
+          (status === 'stocked' && item.SALDO > 0) ||
+          (status === 'empty' && item.SALDO <= 0);
+        return matchesQuery && matchesStatus;
+      });
+      host.innerHTML = rows.length ? `<div class="stock-card-grid">${rows.map(item => {
+        const canWrite = App.canWrite('estoque');
+        const itemType = item.TIPO_ESTOQUE || type;
+        const actionClass = itemType === 'INSUMO' ? '' : 'two';
+        return `<article class="stock-item-card ${item.ABAIXO_MINIMO ? 'low' : ''}">
+          <div class="stock-item-head">
+            <div><small class="text-secondary">${itemType === 'INSUMO' ? 'Insumo' : 'Produto produzido'} · ${UI.esc(item.CODIGO || 'Sem código')}</small><h3>${UI.esc(item.NOME)}</h3></div>
+            ${UI.badge(item.SITUACAO)}
+          </div>
+          <div class="stock-balance">${UI.number(item.SALDO)} <small>${UI.esc(item.UNIDADE)}</small></div>
+          <div class="stock-levels">Mínimo ${UI.number(item.ESTOQUE_MINIMO)} · ${UI.number(item.LOTES)} lote(s)${item.CUSTO_MEDIO > 0 ? ` · custo médio ${UI.currency(item.CUSTO_MEDIO)}/${UI.esc(item.UNIDADE)}` : ''}</div>
+          <div class="stock-card-actions ${actionClass}">
+            ${itemType === 'INSUMO' && canWrite ? `<button title="Registrar entrada" aria-label="Registrar entrada" class="btn btn-sm btn-primary" data-stock-action="entry" data-stock-type="${itemType}" data-item-id="${UI.esc(item.ID)}"><span class="material-symbols-rounded">add</span>Entrada</button>` : ''}
+            ${canWrite ? `<button title="Registrar saída" aria-label="Registrar saída" class="btn btn-sm btn-light" data-stock-action="exit" data-stock-type="${itemType}" data-item-id="${UI.esc(item.ID)}" ${item.SALDO <= 0 ? 'disabled' : ''}><span class="material-symbols-rounded">remove</span>Saída</button>` : ''}
+            <button title="Ver detalhes" aria-label="Ver detalhes" class="btn btn-sm btn-light" data-stock-action="details" data-stock-type="${itemType}" data-item-id="${UI.esc(item.ID)}"><span class="material-symbols-rounded">history</span>Detalhes</button>
+          </div>
+        </article>`;
+      }).join('')}</div>` : UI.empty('Nenhum item encontrado com este filtro.');
+      host.querySelectorAll('[data-stock-action]').forEach(button => {
+        button.onclick = () => {
+          if (button.dataset.stockAction === 'details') showItemDetails(button.dataset.itemId, button.dataset.stockType);
+          else stockForm(button.dataset.stockAction, button.dataset.itemId, button.dataset.stockType);
+        };
+      });
+    }
+
+    async function loadStock() {
+      const type = document.getElementById('stockType').value;
+      document.getElementById('stockEntryButton').classList.toggle('d-none', !App.canWrite('estoque') || type === 'PRODUTO');
+      document.getElementById('stockExitButton').classList.toggle('d-none', !App.canWrite('estoque') || type === 'TODOS');
+      document.getElementById('stockTable').innerHTML = UI.skeleton();
+      if (type === 'TODOS') {
+        const result = await Promise.all([
+          App.server('estoque.overview', { type:'INSUMO', includeEmpty:true }),
+          App.server('estoque.overview', { type:'PRODUTO', includeEmpty:true })
+        ]);
+        const inputs = result[0], products = result[1];
+        cache.stock = {
+          type:'TODOS',
+          items:inputs.items.map(item=>({...item,TIPO_ESTOQUE:'INSUMO'})).concat(products.items.map(item=>({...item,TIPO_ESTOQUE:'PRODUTO'}))),
+          lots:inputs.lots.map(lot=>({...lot,TIPO_ESTOQUE:'INSUMO'})).concat(products.lots.map(lot=>({...lot,TIPO_ESTOQUE:'PRODUTO'}))),
+          summary:{
+            items:inputs.summary.items+products.summary.items,
+            stocked:inputs.summary.stocked+products.summary.stocked,
+            lowStock:inputs.summary.lowStock+products.summary.lowStock
+          }
+        };
+      } else {
+        cache.stock = await App.server('estoque.overview', { type, includeEmpty:true });
+        cache.stock.items = cache.stock.items.map(item=>({...item,TIPO_ESTOQUE:type}));
+        cache.stock.lots = cache.stock.lots.map(lot=>({...lot,TIPO_ESTOQUE:type}));
+      }
+      document.getElementById('stockMetricItems').textContent = UI.number(cache.stock.summary.items);
+      document.getElementById('stockMetricStocked').textContent = UI.number(cache.stock.summary.stocked);
+      document.getElementById('stockMetricLow').textContent = UI.number(cache.stock.summary.lowStock);
+      renderStockCards();
+    }
+    async function ensureCatalogs() {
+      const [inputs, products] = await Promise.all([App.server('insumos.list'), App.server('produtos.list')]);
+      cache.inputs = inputs; cache.products = products;
+      App.state.lookups.inputs = inputs.filter(item => item.STATUS === 'Ativo').map(item => ({ id: item.ID, name: item.NOME }));
+      App.state.lookups.products = products.filter(item => item.STATUS === 'Ativo').map(item => ({ id: item.ID, name: item.NOME }));
+    }
+    function stockForm(mode, selectedItemId = '', selectedType = '') {
+      const currentType = document.getElementById('stockType').value;
+      const type = mode === 'entry' ? 'INSUMO' : (selectedType || (currentType === 'TODOS' ? 'INSUMO' : currentType));
+      const items = type === 'INSUMO' ? App.state.lookups.inputs : App.state.lookups.products;
+      const isEntry = mode === 'entry';
+      const today = UI.today();
+      UI.openModal({
+        title: isEntry ? 'Entrada de insumo' : 'Registrar saída', eyebrow: isEntry ? 'Recebimento do fornecedor' : 'Estoque por lote', formId: 'modalForm', submitText: isEntry ? 'Registrar entrada' : 'Confirmar saída',
+        body: `<form id="modalForm" class="row g-3">
+          <input type="hidden" name="TIPO_ESTOQUE" value="${type}">
+          ${selectField('ITEM_ID', type === 'INSUMO' ? 'Insumo' : 'Produto', items, selectedItemId, 12, 'required')}
+          ${field('QUANTIDADE', 'Quantidade', '', 'number', 6, 'min="0.0001" step="0.0001" required')}
+          ${isEntry ? field('CUSTO_UNITARIO', 'Valor unitário desta entrada (R$)', '', 'number', 6, 'id="stockEntryUnitCost" min="0" step="0.0001" required') : ''}
+          ${isEntry ? field('DATA_ENTRADA', 'Data de chegada do fornecedor', today, 'date', 6, 'required') : selectField('TIPO', 'Tipo de saída', ['SAIDA','VENDA','CONSUMO_INTERNO','TRANSFERENCIA'], '', 6)}
+          ${isEntry ? field('LOTE', 'Lote (opcional)', '', 'text', 6) : ''}
+          <div class="col-12"><label class="form-label">${isEntry ? 'Observações' : 'Justificativa'}</label><textarea name="${isEntry ? 'OBSERVACOES' : 'JUSTIFICATIVA'}" class="form-control" rows="3" ${isEntry ? '' : 'required'}></textarea></div>
+        </form>`,
+        onSubmit: async data => {
+          await App.server(isEntry ? 'estoque.entry' : 'estoque.exit', data);
+          UI.toast(isEntry ? 'Entrada registrada.' : 'Saída registrada.');
+          await loadStock();
+        }
+      });
+      if (isEntry) {
+        const itemSelect = document.querySelector('#modalForm [name="ITEM_ID"]');
+        const costInput = document.getElementById('stockEntryUnitCost');
+        const updateEntryCost = () => {
+          const item = cache.inputs.find(row => String(row.ID) === String(itemSelect.value));
+          costInput.value = item ? Number(item.PRECO_ATUAL || item.PRECO_MEDIO || 0) : '';
+          costInput.previousElementSibling.textContent = item
+            ? `Valor unitário desta entrada (R$ / ${item.UNIDADE || 'unidade'})`
+            : 'Valor unitário desta entrada (R$)';
+        };
+        itemSelect.addEventListener('change', updateEntryCost);
+        updateEntryCost();
+      }
+    }
+    function showItemDetails(itemId, stockType) {
+      const item = cache.stock.items.find(row => String(row.ID) === String(itemId) && (!stockType || row.TIPO_ESTOQUE === stockType));
+      const lots = cache.stock.lots.filter(row => String(row.ITEM_ID) === String(itemId) && (!stockType || row.TIPO_ESTOQUE === stockType));
+      UI.openModal({
+        title: item ? item.NOME : 'Detalhes do estoque',
+        eyebrow: 'Lotes e entradas',
+        size: 'xl',
+        body: `<div class="alert alert-light border mb-3"><strong>Saldo atual:</strong> ${UI.number(item?.SALDO)} ${UI.esc(item?.UNIDADE || '')}</div><div id="stockItemLots"></div>`
+      });
+      UI.renderTable('stockItemLots', lots, [
+        { key: 'LOTE', label: 'Lote' },
+        { key: 'ENTRADA_EM', label: 'Chegada', render: UI.date },
+        { key: 'QUANTIDADE_INICIAL', label: 'Entrada', render: value => `${UI.number(value)} ${UI.esc(item?.UNIDADE || '')}` },
+        { key: 'QUANTIDADE_ATUAL', label: 'Saldo', render: value => `${UI.number(value)} ${UI.esc(item?.UNIDADE || '')}` }
+      ], { selectable: false, exportName: `lotes-${item?.CODIGO || 'item'}`, emptyMessage: 'Este item ainda não possui lotes com saldo.' });
+    }
+    async function showMovements() {
+      UI.openModal({ title: 'Movimentações recentes', eyebrow: 'Histórico', size: 'xl', body: `<div id="movementModalTable">${UI.skeleton()}</div>` });
+      const rows = await App.server('estoque.movements', { type: document.getElementById('stockType').value, limit: 500 });
+      UI.renderTable('movementModalTable', rows, [
+        { key: 'DATA_HORA', label: 'Data', render: UI.date }, { key: 'TIPO', label: 'Movimento', render: UI.badge },
+        { key: 'ITEM_ID', label: 'Item ID' }, { key: 'QUANTIDADE', label: 'Quantidade', render: UI.number },
+        { key: 'SALDO_ANTES', label: 'Antes', render: UI.number }, { key: 'SALDO_DEPOIS', label: 'Depois', render: UI.number },
+        { key: 'REFERENCIA_TIPO', label: 'Origem' }, { key: 'JUSTIFICATIVA', label: 'Justificativa' }
+      ], { exportName: 'movimentacoes' });
+    }
+
+    async function loadInputs() {
+      document.getElementById('newInputButton').classList.toggle('d-none', !App.canWrite('insumos'));
+      document.getElementById('inputsTable').innerHTML = UI.skeleton();
+      cache.inputs = await App.server('insumos.list');
+      UI.renderTable('inputsTable', cache.inputs, [
+        { key: 'CODIGO', label: 'Código' }, { key: 'NOME', label: 'Nome', render: value => `<strong>${UI.esc(value)}</strong>` },
+        { key: 'CATEGORIA', label: 'Categoria' }, { key: 'UNIDADE', label: 'Unidade' },
+        { key: 'PRECO_ATUAL', label: 'Valor atual', render: (value, row) => `${UI.currency(value)}/${UI.esc(row.UNIDADE || 'un')}` },
+        { key: 'PRECO_MEDIO', label: 'Custo médio', render: (value, row) => `${UI.currency(value)}/${UI.esc(row.UNIDADE || 'un')}` },
+        { key: 'ESTOQUE_ATUAL', label: 'Saldo', render: UI.number }, { key: 'ESTOQUE_MINIMO', label: 'Mínimo', render: UI.number },
+        { key: 'STATUS', label: 'Status', render: UI.badge }, { key: '_actions', label: 'Ações', render: (_, row) => App.canWrite('insumos') ? actions(row.ID) : '' }
+      ], { exportName: 'insumos', onAction: inputAction });
+    }
+    function inputAction(action, id, row) {
+      if (action === 'edit') inputForm(row);
+      if (action === 'delete') deactivate('insumos.delete', id, 'Inativar insumo', 'O insumo será mantido no histórico.', loadInputs);
+    }
+    function inputForm(row = {}) {
+      UI.openModal({
+        title: row.ID ? 'Editar insumo' : 'Novo insumo', eyebrow: 'Cadastro', formId: 'modalForm', submitText: 'Salvar insumo',
+        body: `<form id="modalForm" class="row g-3"><input type="hidden" name="ID" value="${UI.esc(row.ID || '')}">
+          ${field('CODIGO','Código',row.CODIGO,'text',4)}${field('NOME','Nome',row.NOME,'text',8,'required')}
+          ${field('CATEGORIA','Categoria',row.CATEGORIA,'text',6)}${selectField('UNIDADE','Unidade',App.state.lookups.units,row.UNIDADE,6,'required')}
+          ${selectField('FORNECEDOR_PREFERENCIAL','Fornecedor preferencial',App.state.lookups.suppliers,row.FORNECEDOR_PREFERENCIAL,6)}
+          ${field('CODIGO_BARRAS','Código de barras',row.CODIGO_BARRAS,'text',6)}
+          ${field('PRECO_ATUAL','Valor unitário do insumo (R$)',row.PRECO_ATUAL,'number',6,'id="inputReferencePrice" min="0" step="0.0001" required')}
+          <div class="col-md-6"><label class="form-label">Custo médio atual</label><div class="form-control bg-body-tertiary">${UI.currency(row.PRECO_MEDIO || row.PRECO_ATUAL || 0)}${row.UNIDADE ? ` / ${UI.esc(row.UNIDADE)}` : ''}</div><small class="form-text text-secondary">Atualizado automaticamente pelas entradas de estoque.</small></div>
+          ${field('ESTOQUE_MINIMO','Estoque mínimo',row.ESTOQUE_MINIMO,'number',6,'min="0" step="0.0001"')}${field('ESTOQUE_MAXIMO','Estoque máximo',row.ESTOQUE_MAXIMO,'number',6,'min="0" step="0.0001"')}
+          <div class="col-md-6"><label class="form-label">Foto (JPG, PNG ou WEBP)</label><input id="inputPhotoFile" type="file" accept="image/jpeg,image/png,image/webp" class="form-control"></div>
+          ${selectField('STATUS','Status',['Ativo','Inativo'],row.STATUS || 'Ativo',6)}
+          <div class="col-12"><label class="form-label">Observações</label><textarea name="OBSERVACOES" class="form-control" rows="3">${UI.esc(row.OBSERVACOES || '')}</textarea></div>
+        </form>`,
+        onSubmit: async data => { const photo=await UI.uploadImage(document.getElementById('inputPhotoFile')); if(photo)data.FOTO=photo; await App.server('insumos.save', data); UI.toast('Insumo salvo.'); await loadInputs(); App.state.lookups = await App.server('lookups.get'); }
+      });
+    }
+
+    async function loadProducts() {
+      document.getElementById('newProductButton').classList.toggle('d-none', !App.canWrite('produtos'));
+      document.getElementById('productsTable').innerHTML = UI.skeleton();
+      cache.products = await App.server('produtos.list');
+      UI.renderTable('productsTable', cache.products, [
+        { key: 'CODIGO', label: 'Código' }, { key: 'NOME', label: 'Produto produzido', render: value => `<strong>${UI.esc(value)}</strong>` },
+        { key: 'CATEGORIA', label: 'Categoria' }, { key: 'UNIDADE', label: 'Unidade' },
+        { key: 'PESO_UNITARIO', label: 'Peso por unidade', render: (value, row) => Number(value) > 0 ? `${UI.number(value)} ${UI.esc(row.UNIDADE_PESO || '')}` : '—' },
+        { key: 'CUSTO', label: 'Custo médio', render: (value, row) => `${UI.currency(value)}/${UI.esc(row.UNIDADE || 'un')}` },
+        { key: 'ESTOQUE_ATUAL', label: 'Estoque', render: UI.number },
+        { key: 'ESTOQUE_MINIMO', label: 'Mínimo', render: UI.number }, { key: 'ESTOQUE_MAXIMO', label: 'Máximo', render: UI.number },
+        { key: 'STATUS', label: 'Status', render: UI.badge },
+        { key: '_actions', label: 'Ações', render: (_, row) => App.canWrite('produtos') ? actions(row.ID) : '' }
+      ], { exportName: 'produtos', onAction: (action, id, row) => action === 'edit' ? productForm(row) : deactivate('produtos.delete', id, 'Inativar produto', 'O produto será mantido no histórico.', loadProducts) });
+    }
+    function productForm(row = {}) {
+      UI.openModal({
+        title: row.ID ? 'Editar produto produzido' : 'Cadastrar produto produzido', eyebrow: 'Item fabricado pela cozinha', formId: 'modalForm', submitText: 'Salvar produto',
+        body: `<form id="modalForm" class="row g-3"><input type="hidden" name="ID" value="${UI.esc(row.ID || '')}">
+          ${field('CODIGO','Código',row.CODIGO,'text',4)}${field('NOME','Nome',row.NOME,'text',8,'required')}
+          ${field('CATEGORIA','Categoria',row.CATEGORIA,'text',6)}${selectField('UNIDADE','Unidade',App.state.lookups.units,row.UNIDADE,6,'required')}
+          ${field('PESO_UNITARIO','Peso de cada unidade ou pacote',row.PESO_UNITARIO,'number',6,'min="0" step="0.0001" placeholder="Ex.: 180"')}
+          ${selectField('UNIDADE_PESO','Unidade do peso',['g','kg'],row.UNIDADE_PESO || 'g',6)}
+          <div class="col-12"><div class="alert alert-info mb-0"><strong>Exemplo:</strong> para um pacote de queijo com 180 g, escolha unidade do produto <strong>pct</strong>, informe peso <strong>180</strong> e unidade do peso <strong>g</strong>.</div></div>
+          ${field('CODIGO_BARRAS','Código de barras',row.CODIGO_BARRAS,'text',12)}
+          ${field('ESTOQUE_MINIMO','Estoque mínimo',row.ESTOQUE_MINIMO,'number',6,'min="0"')}${field('ESTOQUE_MAXIMO','Estoque máximo',row.ESTOQUE_MAXIMO,'number',6,'min="0"')}
+          <div class="col-md-6"><label class="form-label">Foto (JPG, PNG ou WEBP)</label><input id="productPhotoFile" type="file" accept="image/jpeg,image/png,image/webp" class="form-control"></div>${selectField('STATUS','Status',['Ativo','Inativo'],row.STATUS || 'Ativo',6)}
+        </form>`,
+        onSubmit: async data => { const photo=await UI.uploadImage(document.getElementById('productPhotoFile')); if(photo)data.FOTO=photo; await App.server('produtos.save', data); UI.toast('Produto salvo.'); await loadProducts(); App.state.lookups = await App.server('lookups.get'); }
+      });
+    }
+
+    async function loadProductions() {
+      document.getElementById('newProductionButton').classList.toggle('d-none', !App.canWrite('producoes'));
+      document.getElementById('productionsTable').innerHTML = UI.skeleton();
+      cache.productions = await App.server('producoes.list');
+      UI.renderTable('productionsTable', cache.productions, [
+        { key: 'CODIGO', label: 'Código' }, { key: 'INSUMO_NOME', label: 'Insumo retirado', render: value => `<strong>${UI.esc(value || '—')}</strong>` },
+        { key: 'CONSUMO_INSUMO', label: 'Quantidade retirada', render: value => UI.esc(value || '—') },
+        { key: 'PRODUTO_NOME', label: 'Produto resultante', render: value => `<strong>${UI.esc(value)}</strong>` },
+        { key: 'HORA_INICIO', label: 'Data da produção', render: UI.date }, { key: 'OPERADOR_NOME', label: 'Operador' },
+        { key: 'QTD_PRODUZIDA', label: 'Quantidade produzida', render: (value, row) => row.STATUS === 'Em produção' ? '<span class="text-secondary">Aguardando</span>' : `${UI.number(value)} ${UI.esc(row.UNIDADE_PRODUTO || '')}` },
+        { key: 'RENDIMENTO_RESUMO', label: 'Rendimento do insumo', render: (value, row) => row.STATUS === 'Em produção' ? '<span class="text-secondary">Calculado ao finalizar</span>' : UI.esc(value || '—') },
+        { key: 'CUSTO_TOTAL', label: 'Custo dos insumos', render: (value, row) => row.STATUS === 'Em produção' ? `<span class="text-secondary">Estimado: ${UI.currency(row.CUSTO_ESTIMADO_INSUMOS || 0)}</span>` : UI.currency(value) },
+        { key: 'CUSTO_UNITARIO_PRODUZIDO', label: 'Custo por unidade', render: (value, row) => row.STATUS === 'Em produção' ? '—' : `${UI.currency(value)}/${UI.esc(row.UNIDADE_PRODUTO || 'un')}` },
+        { key: 'STATUS', label: 'Status', render: UI.badge },
+        { key: '_actions', label: 'Ações', render: (_, row) => row.STATUS === 'Em produção' && App.canWrite('producoes') ? `<div class="d-flex gap-1">${UI.actionButton('task_alt','Finalizar','finish',row.ID)}${UI.actionButton('cancel','Cancelar','cancel',row.ID,'text-danger')}</div>` : '' }
+      ], { exportName: 'producoes', onAction: productionAction });
+    }
+    function startProductionForm() {
+      const today = UI.today();
+      const operators = App.state.lookups.operators?.length ? App.state.lookups.operators : [{id:App.state.user.id,name:App.state.user.name}];
+      const availableInputs = cache.inputs.filter(input => input.STATUS === 'Ativo').map(input => ({id:input.ID,name:`${input.NOME}${input.UNIDADE ? ` (${input.UNIDADE})` : ''}`}));
+      const producibleProducts = cache.products.filter(product => product.STATUS === 'Ativo').map(product => ({id:product.ID,name:`${product.NOME}${product.UNIDADE ? ` (${product.UNIDADE})` : ''}`}));
+      if (!availableInputs.length) {
+        UI.toast('Cadastre ao menos um insumo antes de registrar a produção.', 'warning');
+        return;
+      }
+      if (!producibleProducts.length) {
+        UI.toast('Cadastre ao menos um produto produzido antes de registrar a produção.', 'warning');
+        return;
+      }
+      UI.openModal({
+        title: 'Iniciar produção', eyebrow: 'Etapa 1 de 2', formId: 'modalForm', submitText: 'Iniciar produção',
+        body: `<form id="modalForm" class="row g-3">
+          ${selectField('INSUMO_ID','Insumo separado',availableInputs,'',8,'id="productionInput" required')}
+          ${field('QUANTIDADE_INSUMO','Quantidade separada','','number',4,'id="productionInputQuantity" min="0.0001" step="0.0001" required')}
+          ${selectField('PRODUTO_ID','Produto resultante',producibleProducts,'',8,'id="productionProduct" required')}
+          ${field('LOTE','Lote (opcional)','','text',4)}
+          ${field('DATA_PRODUCAO','Data da produção',today,'date',6,'required')}
+          ${selectField('OPERADOR_ID','Operador responsável',operators,App.state.user.id,6,'required')}
+          <div class="col-12"><label class="form-label">Observações</label><textarea name="OBSERVACOES" class="form-control" rows="3"></textarea></div>
+          <div class="col-12"><div class="alert alert-info mb-0"><strong>Nesta etapa:</strong> a produção ficará em andamento. O estoque só será movimentado quando você informar a quantidade produzida e finalizar.</div></div>
+        </form>`,
+        onSubmit: async data => { await App.server('producoes.start', data); UI.toast('Produção iniciada. Finalize quando souber a quantidade produzida.'); await loadProductions(); }
+      });
+    }
+    function productionAction(action, id, row) {
+      if (action === 'finish') {
+        const outputUnit = String(row.UNIDADE_PRODUTO || '');
+        const normalizedOutputUnit = outputUnit.toLowerCase();
+        const outputLabel = normalizedOutputUnit === 'pct'
+          ? 'Pacotes produzidos'
+          : normalizedOutputUnit === 'un'
+            ? 'Unidades produzidas'
+            : `Quantidade produzida (${outputUnit || 'unidade'})`;
+        const registeredWeight = Number(row.PESO_UNITARIO_PRODUTO || 0);
+        const registeredWeightUnit = String(row.UNIDADE_PESO_PRODUTO || '');
+        UI.openModal({
+          title: `Finalizar ${row.CODIGO}`, eyebrow: 'Etapa 2 de 2', formId: 'modalForm', submitText: 'Finalizar e movimentar estoque',
+          body: `<form id="modalForm" class="row g-3"><input type="hidden" name="ID" value="${UI.esc(id)}">
+            <div class="col-12"><div class="alert alert-light border"><strong>${UI.esc(row.INSUMO_NOME)}</strong><br>Quantidade separada: ${UI.esc(row.CONSUMO_INSUMO)} · produto: ${UI.esc(row.PRODUTO_NOME)}${registeredWeight > 0 ? ` · ${UI.number(registeredWeight)} ${UI.esc(registeredWeightUnit)} por ${UI.esc(outputUnit || 'unidade')}` : ''}</div></div>
+            ${field('QUANTIDADE_PRODUZIDA',outputLabel,'','number',6,'id="finishOutputQuantity" min="0.0001" step="0.0001" required')}
+            ${field('QUANTIDADE_PERDIDA','Perda do produto (opcional)',0,'number',6,'min="0" step="0.0001"')}
+            ${selectField('CATEGORIA_PERDA','Categoria da perda',['Quebra','Erro','Contaminação','Sobras','Outros'],'Sobras',6)}
+            <div class="col-12"><div class="alert alert-info mb-0"><strong>Rendimento:</strong> <span id="finishYield">informe a quantidade produzida</span></div></div>
+            <div class="col-12"><div class="production-cost-preview"><span><small>Custo médio dos insumos</small><strong>${UI.currency(row.CUSTO_ESTIMADO_INSUMOS || 0)}</strong></span><span><small>Custo estimado por ${UI.esc(outputUnit || 'unidade')}</small><strong id="finishUnitCost">—</strong></span></div></div>
+            ${['pct','un','porção'].includes(normalizedOutputUnit) && registeredWeight <= 0 ? '<div class="col-12"><div class="alert alert-warning mb-0">Cadastre o peso de cada pacote no produto para calcular também o peso total e o percentual de aproveitamento.</div></div>' : ''}
+            <div class="col-12"><label class="form-label">Observações</label><textarea name="OBSERVACOES" class="form-control" rows="3">${UI.esc(row.OBSERVACOES || '')}</textarea></div>
+            <div class="col-12"><div class="alert alert-warning mb-0">Ao finalizar, o insumo será baixado por PEPS e o produto produzido entrará no estoque.</div></div>
+          </form>`,
+          onSubmit: async data => { await App.server('producoes.finish',data); UI.toast('Produção finalizada e estoques atualizados.'); await ensureCatalogs(); await loadProductions(); }
+        });
+        const inputQuantity = Number(row.QTD_INSUMO || 0);
+        document.getElementById('finishOutputQuantity').oninput = event => {
+          const outputQuantity = Number(event.target.value);
+          const inputUnit = String(row.UNIDADE_INSUMO || '');
+          const productUnit = String(row.UNIDADE_PRODUTO || '');
+          const toKg = (value, unit) => String(unit).toLowerCase() === 'kg'
+            ? Number(value)
+            : String(unit).toLowerCase() === 'g' ? Number(value) / 1000 : 0;
+          const inputKg = toKg(inputQuantity, inputUnit);
+          const directOutputKg = toKg(outputQuantity, productUnit);
+          const packageWeightKg = toKg(registeredWeight, registeredWeightUnit);
+          const packedKg = directOutputKg || (packageWeightKg > 0 ? outputQuantity * packageWeightKg : 0);
+          let yieldText = 'informe a quantidade produzida';
+          if (inputQuantity > 0 && outputQuantity > 0) {
+            if (inputKg > 0 && directOutputKg <= 0) {
+              const unitName = normalizedOutputUnit === 'pct' ? 'pacotes' : normalizedOutputUnit === 'un' ? 'unidades' : (productUnit || 'unidades');
+              yieldText = `${UI.number(outputQuantity / inputKg)} ${unitName}/kg`;
+              if (packedKg > 0) yieldText += ` · ${UI.number(packedKg)} kg embalados · ${UI.number(packedKg / inputKg * 100)}% de aproveitamento`;
+            } else if (inputKg > 0 && packedKg > 0) {
+              yieldText = `${UI.number(packedKg / inputKg * 100)}% de aproveitamento · ${UI.number(packedKg)} kg produzidos`;
+            } else if (inputUnit.toLowerCase() === productUnit.toLowerCase()) {
+              yieldText = `${UI.number(outputQuantity / inputQuantity * 100)}% do insumo`;
+            } else {
+              yieldText = `${UI.number(outputQuantity / inputQuantity)} ${productUnit || 'unidade produzida'} por ${inputUnit || 'unidade de insumo'}`;
+            }
+          }
+          document.getElementById('finishYield').textContent = yieldText;
+          document.getElementById('finishUnitCost').textContent = outputQuantity > 0
+            ? UI.currency(Number(row.CUSTO_ESTIMADO_INSUMOS || 0) / outputQuantity)
+            : '—';
+        };
+      } else if (action === 'cancel') {
+        UI.openModal({
+          title: 'Cancelar produção', eyebrow: 'Produção em andamento', formId: 'modalForm', submitText: 'Cancelar produção',
+          body: `<form id="modalForm"><input type="hidden" name="id" value="${UI.esc(id)}"><label class="form-label">Justificativa</label><textarea name="justification" class="form-control" rows="4" required></textarea><p class="text-secondary small mt-3">Como a produção ainda não foi finalizada, nenhuma baixa será feita no estoque.</p></form>`,
+          onSubmit: async data => { await App.server('producoes.cancel',data); UI.toast('Produção cancelada.','warning'); await loadProductions(); }
+        });
+      }
+    }
+
+    async function loadLosses() {
+      document.getElementById('newLossButton').classList.toggle('d-none', !App.canWrite('perdas'));
+      document.getElementById('lossesTable').innerHTML = UI.skeleton();
+      cache.losses = await App.server('perdas.list');
+      UI.renderTable('lossesTable', cache.losses, [
+        { key: 'DATA_HORA', label: 'Data', render: UI.date }, { key: 'ITEM_NOME', label: 'Item', render: value => `<strong>${UI.esc(value)}</strong>` },
+        { key: 'TIPO_ESTOQUE', label: 'Estoque' }, { key: 'QUANTIDADE', label: 'Quantidade', render: (value, row) => `${UI.number(value)} ${UI.esc(row.UNIDADE || '')}` },
+        { key: 'CUSTO_UNITARIO', label: 'Custo unitário', render: (value, row) => `${UI.currency(value)}/${UI.esc(row.UNIDADE || 'un')}` },
+        { key: 'CATEGORIA', label: 'Categoria', render: UI.badge }, { key: 'MOTIVO', label: 'Motivo' }, { key: 'CUSTO', label: 'Valor da perda', render: UI.currency }
+      ], { exportName: 'perdas' });
+    }
+    function lossForm() {
+      const type = 'INSUMO';
+      UI.openModal({
+        title: 'Registrar perda', eyebrow: 'Baixa de estoque', formId: 'modalForm', submitText: 'Registrar perda',
+        body: `<form id="modalForm" class="row g-3">${selectField('TIPO_ESTOQUE','Tipo de estoque',['INSUMO','PRODUTO'],type,6,'id="lossType" required')}<div class="col-md-6"><label class="form-label">Item</label><select id="lossItem" name="ITEM_ID" class="form-select" required>${UI.options(App.state.lookups.inputs)}</select></div>${field('QUANTIDADE','Quantidade','','number',6,'id="lossQuantity" min="0.0001" step="0.0001" required')}${selectField('CATEGORIA','Categoria',['Quebra','Erro','Contaminação','Sobras','Outros'],'',6,'required')}<div class="col-12"><div class="loss-cost-preview"><span class="material-symbols-rounded">payments</span><div><small>Valor estimado da perda</small><strong id="lossCostEstimate">Selecione o item e informe a quantidade</strong><small id="lossCostReference"></small></div></div></div>${selectField('OPERADOR_ID','Operador',App.state.lookups.operators,'',6)}${selectField('SUPERVISOR_ID','Supervisor',App.state.lookups.operators,'',6)}<div class="col-12"><label class="form-label">Motivo</label><textarea name="MOTIVO" class="form-control" rows="3" required></textarea></div><div class="col-12"><label class="form-label">Foto da evidência</label><input id="lossPhotoFile" type="file" accept="image/jpeg,image/png,image/webp" class="form-control"></div></form>`,
+        onSubmit: async data => { const photo=await UI.uploadImage(document.getElementById('lossPhotoFile')); if(photo)data.FOTO=photo; const saved=await App.server('perdas.save',data); UI.toast(`Perda registrada no valor de ${UI.currency(saved.CUSTO)}.`); await ensureCatalogs(); await loadLosses(); }
+      });
+      const updateLossEstimate = () => {
+        const selectedType = document.getElementById('lossType').value;
+        const selectedId = document.getElementById('lossItem').value;
+        const rows = selectedType === 'INSUMO' ? cache.inputs : cache.products;
+        const item = rows.find(row => String(row.ID) === String(selectedId));
+        const quantity = Number(document.getElementById('lossQuantity').value || 0);
+        const unitCost = item
+          ? Number(selectedType === 'INSUMO' ? (item.PRECO_MEDIO || item.PRECO_ATUAL || 0) : (item.CUSTO || 0))
+          : 0;
+        document.getElementById('lossCostEstimate').textContent = item && quantity > 0
+          ? UI.currency(quantity * unitCost)
+          : 'Selecione o item e informe a quantidade';
+        document.getElementById('lossCostReference').textContent = item
+          ? `${UI.currency(unitCost)} por ${item.UNIDADE || 'unidade'}`
+          : '';
+      };
+      document.getElementById('lossType').onchange = event => {
+        document.getElementById('lossItem').innerHTML = UI.options(event.target.value === 'INSUMO' ? App.state.lookups.inputs : App.state.lookups.products);
+        updateLossEstimate();
+      };
+      document.getElementById('lossItem').onchange = updateLossEstimate;
+      document.getElementById('lossQuantity').oninput = updateLossEstimate;
+    }
+
+    async function deactivate(action, id, title, message, reload) {
+      if (!await UI.confirm(title, message, 'Inativar', true)) return;
+      try { await App.server(action,{id}); UI.toast('Registro inativado.','warning'); await reload(); }
+      catch (error) { UI.toast(error.message,'danger'); }
+    }
+    function bind() {
+      document.getElementById('stockType').onchange = loadStock;
+      document.getElementById('stockSearch').oninput = UI.debounce(renderStockCards, 120);
+      document.getElementById('stockStatusFilter').onchange = renderStockCards;
+      document.getElementById('stockEntryButton').onclick = () => stockForm('entry');
+      document.getElementById('stockExitButton').onclick = () => stockForm('exit');
+      document.getElementById('stockMovementsButton').onclick = showMovements;
+      document.getElementById('newInputButton').onclick = () => inputForm();
+      document.getElementById('newProductButton').onclick = () => productForm();
+      document.getElementById('newProductionButton').onclick = startProductionForm;
+      document.getElementById('newLossButton').onclick = lossForm;
+    }
+    bind();
+    window.ModuleLoaders.estoque = async () => { await ensureCatalogs(); await loadStock(); };
+    window.ModuleLoaders.insumos = loadInputs;
+    window.ModuleLoaders.produtos = loadProducts;
+    window.ModuleLoaders.producao = async () => { await ensureCatalogs(); await loadProductions(); };
+    window.ModuleLoaders.perdas = async () => { await ensureCatalogs(); await loadLosses(); };
+  })();
+</script>

@@ -1,0 +1,20 @@
+<header class="topbar">
+  <button id="sidebarToggle" class="icon-btn" type="button" aria-label="Alternar menu" aria-controls="sidebar" aria-expanded="false"><span class="material-symbols-rounded">menu</span></button>
+  <div class="global-search">
+    <span class="material-symbols-rounded">search</span>
+    <input id="globalSearch" type="search" autocomplete="off" placeholder="Pesquisar código, insumo, produto ou lote...">
+    <div id="searchResults" class="search-results d-none"></div>
+  </div>
+  <div class="user-menu">
+    <button id="themeToggle" class="icon-btn theme-toggle" type="button" aria-label="Alternar tema"><span class="material-symbols-rounded">dark_mode</span></button>
+    <div class="dropdown">
+      <button class="icon-btn position-relative" data-bs-toggle="dropdown" type="button" aria-label="Notificações"><span class="material-symbols-rounded">notifications</span><span id="notificationDot" class="notification-dot d-none"></span></button>
+      <div class="dropdown-menu dropdown-menu-end p-2" style="width:min(380px,92vw)">
+        <div class="d-flex justify-content-between align-items-center px-2 py-2"><strong>Notificações</strong><button id="readAllNotifications" class="btn btn-sm btn-link text-decoration-none">Marcar lidas</button></div>
+        <div id="notificationList"></div>
+      </div>
+    </div>
+    <div class="avatar" id="userAvatar">U</div>
+    <div class="user-copy"><strong id="userName" class="d-block"></strong><small id="userRole" class="text-secondary"></small></div>
+  </div>
+</header>

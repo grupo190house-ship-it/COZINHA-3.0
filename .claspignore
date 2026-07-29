@@ -1,0 +1,11 @@
+node_modules/**
+.git/**
+.github/**
+docs/**
+scripts/**
+*.md
+package.json
+package-lock.json
+dev-preview.mjs
+.clasp.json.example
+.editorconfig

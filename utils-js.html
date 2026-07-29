@@ -1,0 +1,173 @@
+<script>
+  const UI = (() => {
+    const tables = new Map();
+    const esc = value => String(value ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    const number = value => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 4 }).format(Number(value || 0));
+    const currency = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+    const date = value => {
+      if (!value) return '—';
+      const raw = String(value);
+      const parsed = new Date(raw.length === 10 ? raw + 'T12:00:00' : raw);
+      return Number.isNaN(parsed.getTime()) ? esc(raw) : new Intl.DateTimeFormat('pt-BR', raw.length > 10 ? { dateStyle: 'short', timeStyle: 'short' } : { dateStyle: 'short' }).format(parsed);
+    };
+    const today = () => {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+    };
+    const statusClass = status => {
+      const value = String(status || '').toLowerCase();
+      if (/(ativo|finalizada|concluído|recebido|aprovado)/.test(value)) return 'success';
+      if (/(inativo|cancelad|vencido|erro)/.test(value)) return 'danger';
+      if (/(pendente|análise|parcial|produção|planejada|solicitado|comprado)/.test(value)) return 'warning';
+      return 'info';
+    };
+    const badge = status => `<span class="badge-soft ${statusClass(status)}">${esc(status || '—')}</span>`;
+    const options = (items, selected, placeholder = 'Selecione...') =>
+      `<option value="">${esc(placeholder)}</option>` + (items || []).map(item => {
+        const value = item.id ?? item.value ?? item;
+        const label = item.name ?? item.label ?? item;
+        return `<option value="${esc(value)}" ${String(value) === String(selected ?? '') ? 'selected' : ''}>${esc(label)}</option>`;
+      }).join('');
+    const formObject = form => {
+      const data = {};
+      new FormData(form).forEach((value, key) => {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+          data[key] = Array.isArray(data[key]) ? data[key].concat(value) : [data[key], value];
+        } else data[key] = value;
+      });
+      const checkboxNames = [...new Set([...form.querySelectorAll('input[type=checkbox]')].map(input => input.name))];
+      checkboxNames.forEach(name => {
+        const group = [...form.querySelectorAll(`input[type=checkbox][name="${CSS.escape(name)}"]`)];
+        if (group.length === 1 && group[0].value === 'on') data[name] = group[0].checked;
+        else if (!Object.prototype.hasOwnProperty.call(data, name)) data[name] = group.length > 1 ? [] : false;
+      });
+      return data;
+    };
+    const toast = (message, type = 'success') => {
+      const id = 'toast-' + Date.now();
+      const icon = type === 'danger' ? 'error' : type === 'warning' ? 'warning' : 'check_circle';
+      const html = `<div id="${id}" class="toast border-0 show" role="alert"><div class="toast-body d-flex align-items-center gap-2"><span class="material-symbols-rounded text-${type}">${icon}</span><span class="flex-grow-1">${esc(message)}</span><button type="button" class="btn-close" data-bs-dismiss="toast"></button></div></div>`;
+      document.getElementById('toastHost').insertAdjacentHTML('beforeend', html);
+      setTimeout(() => document.getElementById(id)?.remove(), 4500);
+    };
+    const loading = (button, active, label) => {
+      if (!button) return;
+      if (active) {
+        button.dataset.original = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = `<span class="spinner-border spinner-border-sm"></span><span>${esc(label || 'Processando...')}</span>`;
+      } else {
+        button.disabled = false;
+        if (button.dataset.original) button.innerHTML = button.dataset.original;
+      }
+    };
+    const modalElement = () => document.getElementById('appModal');
+    const closeModal = () => bootstrap.Modal.getOrCreateInstance(modalElement()).hide();
+    const openModal = config => {
+      const modal = modalElement();
+      modal.querySelector('.modal-dialog').className = `modal-dialog ${config.size === 'xl' ? 'modal-xl' : config.size === 'sm' ? 'modal-sm' : 'modal-lg'} modal-dialog-centered modal-dialog-scrollable`;
+      document.getElementById('modalEyebrow').textContent = config.eyebrow || '';
+      document.getElementById('modalTitle').textContent = config.title || '';
+      document.getElementById('modalBody').innerHTML = config.body || '';
+      document.getElementById('modalFooter').innerHTML = config.footer || `<button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>${config.onSubmit ? `<button id="modalSubmit" type="button" class="btn btn-primary">${esc(config.submitText || 'Salvar')}</button>` : ''}`;
+      if (config.onSubmit) {
+        document.getElementById('modalSubmit').onclick = async event => {
+          const form = document.getElementById(config.formId || 'modalForm');
+          if (form && !form.reportValidity()) return;
+          loading(event.currentTarget, true);
+          try {
+            await config.onSubmit(form ? formObject(form) : {});
+            closeModal();
+          } catch (error) {
+            toast(error.message || String(error), 'danger');
+          } finally { loading(event.currentTarget, false); }
+        };
+      }
+      bootstrap.Modal.getOrCreateInstance(modal).show();
+      requestAnimationFrame(() => document.getElementById('modalBody').querySelector('input,select,textarea')?.focus());
+    };
+    const confirm = (title, message, confirmLabel = 'Confirmar', danger = false) => new Promise(resolve => {
+      openModal({
+        title, eyebrow: 'Confirmação', size: 'sm',
+        body: `<p class="mb-0 text-secondary">${esc(message)}</p>`,
+        footer: `<button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button id="confirmModalButton" type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}">${esc(confirmLabel)}</button>`
+      });
+      document.getElementById('confirmModalButton').onclick = () => { closeModal(); resolve(true); };
+      modalElement().addEventListener('hidden.bs.modal', () => resolve(false), { once: true });
+    });
+    const empty = (message = 'Nenhum registro encontrado.') => `<div class="empty-state"><span class="material-symbols-rounded">inbox</span><div>${esc(message)}</div></div>`;
+    const skeleton = (rows = 6) => `<div class="p-3">${Array.from({ length: rows }, (_, i) => `<div class="skeleton mb-3" style="width:${90 - (i % 3) * 8}%"></div>`).join('')}</div>`;
+    const actionButton = (icon, title, action, id, tone = '') => `<button type="button" class="btn btn-sm btn-light ${tone}" data-row-action="${esc(action)}" data-row-id="${esc(id)}" title="${esc(title)}"><span class="material-symbols-rounded">${esc(icon)}</span></button>`;
+
+    function renderTable(containerId, rows, columns, config = {}) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const state = tables.get(containerId) || { search: '', sort: '', direction: 1, page: 1, pageSize: 10, selected: new Set(), hidden: new Set() };
+      tables.set(containerId, state);
+      const searchable = row => !state.search || columns.some(col => String(row[col.key] ?? '').toLowerCase().includes(state.search.toLowerCase()));
+      let filtered = rows.filter(searchable);
+      if (state.sort) filtered.sort((a, b) => String(a[state.sort] ?? '').localeCompare(String(b[state.sort] ?? ''), 'pt-BR', { numeric: true }) * state.direction);
+      const visibleColumns = columns.filter(col => !state.hidden.has(col.key));
+      const pages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+      state.page = Math.min(state.page, pages);
+      const pageRows = filtered.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+      const toolbar = `<div class="toolbar data-table-toolbar">
+        <div class="input-icon flex-grow-1"><span class="material-symbols-rounded">search</span><input data-table-search="${containerId}" class="form-control w-100" value="${esc(state.search)}" placeholder="${esc(config.searchPlaceholder || 'Pesquisa instantânea...')}"></div>
+        <div class="dropdown"><button class="btn btn-light" data-bs-toggle="dropdown"><span class="material-symbols-rounded">view_column</span>Colunas</button><div class="dropdown-menu dropdown-menu-end p-2">${columns.filter(col => col.key !== '_actions').map(col => `<label class="dropdown-item"><input class="form-check-input me-2" type="checkbox" data-column-toggle="${esc(col.key)}" ${state.hidden.has(col.key) ? '' : 'checked'}>${esc(col.label)}</label>`).join('')}</div></div>
+        <button class="btn btn-light" data-table-export="${containerId}"><span class="material-symbols-rounded">download</span>Exportar</button>
+      </div>`;
+      const header = `<thead><tr>${config.selectable === false ? '' : '<th style="width:42px"><input type="checkbox" class="form-check-input" data-select-all></th>'}${visibleColumns.map(col => `<th data-sort-key="${esc(col.key)}">${esc(col.label)}${state.sort === col.key ? `<span class="material-symbols-rounded" style="font-size:14px">${state.direction === 1 ? 'arrow_upward' : 'arrow_downward'}</span>` : ''}</th>`).join('')}</tr></thead>`;
+      const body = pageRows.length
+        ? `<tbody>${pageRows.map(row => `<tr class="data-row">${config.selectable === false ? '' : `<td class="selection-cell" data-label="Selecionar"><input type="checkbox" class="form-check-input" data-select-row="${esc(row.ID || row.id)}" ${state.selected.has(String(row.ID || row.id)) ? 'checked' : ''}></td>`}${visibleColumns.map(col => `<td class="cell-${esc(col.key)}${col.key === '_actions' ? ' actions-cell' : ''}" data-label="${esc(col.label)}">${col.render ? col.render(row[col.key], row) : esc(row[col.key] ?? '—')}</td>`).join('')}</tr>`).join('')}</tbody>`
+        : `<tbody><tr class="empty-row"><td class="empty-cell" colspan="${visibleColumns.length + (config.selectable === false ? 0 : 1)}">${empty(config.emptyMessage)}</td></tr></tbody>`;
+      container.innerHTML = `${toolbar}<div class="table-responsive data-table-scroll"><table class="table align-middle data-table">${header}${body}</table></div><div class="pagination-row"><span>${filtered.length} registro(s) · ${state.selected.size} selecionado(s)</span><div class="d-flex align-items-center gap-2 pagination-controls"><select data-page-size class="form-select form-select-sm" style="min-width:75px"><option ${state.pageSize === 10 ? 'selected' : ''}>10</option><option ${state.pageSize === 25 ? 'selected' : ''}>25</option><option ${state.pageSize === 50 ? 'selected' : ''}>50</option></select><button class="btn btn-sm btn-light" data-page="-1" ${state.page <= 1 ? 'disabled' : ''} aria-label="Página anterior"><span class="material-symbols-rounded">chevron_left</span></button><span>${state.page}/${pages}</span><button class="btn btn-sm btn-light" data-page="1" ${state.page >= pages ? 'disabled' : ''} aria-label="Próxima página"><span class="material-symbols-rounded">chevron_right</span></button></div></div>`;
+      container.querySelector('[data-table-search]').addEventListener('input', debounce(event => { state.search = event.target.value; state.page = 1; renderTable(containerId, rows, columns, config); }, 120));
+      container.querySelectorAll('[data-sort-key]').forEach(th => th.onclick = () => { state.direction = state.sort === th.dataset.sortKey ? state.direction * -1 : 1; state.sort = th.dataset.sortKey; renderTable(containerId, rows, columns, config); });
+      container.querySelectorAll('[data-page]').forEach(btn => btn.onclick = () => { state.page += Number(btn.dataset.page); renderTable(containerId, rows, columns, config); });
+      container.querySelector('[data-page-size]').onchange = event => { state.pageSize = Number(event.target.value); state.page = 1; renderTable(containerId, rows, columns, config); };
+      container.querySelectorAll('[data-column-toggle]').forEach(input => input.onchange = () => { input.checked ? state.hidden.delete(input.dataset.columnToggle) : state.hidden.add(input.dataset.columnToggle); renderTable(containerId, rows, columns, config); });
+      container.querySelector('[data-select-all]')?.addEventListener('change', event => { pageRows.forEach(row => event.target.checked ? state.selected.add(String(row.ID || row.id)) : state.selected.delete(String(row.ID || row.id))); renderTable(containerId, rows, columns, config); });
+      container.querySelectorAll('[data-select-row]').forEach(input => input.onchange = () => { input.checked ? state.selected.add(input.dataset.selectRow) : state.selected.delete(input.dataset.selectRow); renderTable(containerId, rows, columns, config); });
+      container.querySelector('[data-table-export]').onclick = () => exportCsv(config.exportName || containerId, filtered, visibleColumns.filter(col => col.key !== '_actions'));
+      container.querySelectorAll('[data-row-action]').forEach(button => button.onclick = () => config.onAction?.(button.dataset.rowAction, button.dataset.rowId, rows.find(row => String(row.ID || row.id) === button.dataset.rowId)));
+    }
+
+    function exportCsv(name, rows, columns) {
+      const quote = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+      const content = '\uFEFF' + [columns.map(col => col.label), ...rows.map(row => columns.map(col => row[col.key]))].map(line => line.map(quote).join(';')).join('\r\n');
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }));
+      link.download = `${name}-${today()}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+    function debounce(fn, wait = 250) {
+      let timer;
+      return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), wait); };
+    }
+    async function uploadImageDetails(input) {
+      const file = input?.files?.[0];
+      if (!file) return null;
+      if (file.size > 5 * 1024 * 1024) throw new Error('A imagem deve ter no máximo 5 MB.');
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Use uma imagem JPG, PNG ou WEBP.');
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Não foi possível ler a imagem.'));
+        reader.readAsDataURL(file);
+      });
+      return App.server('media.upload', { name: file.name, mimeType: file.type, base64 });
+    }
+    async function uploadImage(input) {
+      const result = await uploadImageDetails(input);
+      return result ? result.url : '';
+    }
+    return { esc, number, currency, date, today, badge, options, formObject, toast, loading, openModal, closeModal, confirm, empty, skeleton, actionButton, renderTable, debounce, uploadImage, uploadImageDetails };
+  })();
+</script>

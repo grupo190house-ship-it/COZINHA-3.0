@@ -1,0 +1,23 @@
+<style>
+  [data-theme="dark"] {
+    --bg: #0f1421;
+    --surface: #171d2b;
+    --surface-2: #1d2434;
+    --surface-3: #252d40;
+    --text: #edf0f8;
+    --muted: #9aa4b8;
+    --border: rgba(255,255,255,.08);
+    --shadow-sm: 0 3px 16px rgba(0,0,0,.18);
+    --shadow-md: 0 20px 55px rgba(0,0,0,.36);
+  }
+  [data-theme="dark"] .topbar { background: rgba(15,20,33,.84); }
+  [data-theme="dark"] .btn-close { filter: invert(1); }
+  [data-theme="dark"] .form-control::placeholder { color: #737e94; }
+  [data-theme="dark"] .login-screen { background: var(--surface); }
+
+  @media (max-width: 900px) {
+    [data-theme="dark"] .login-screen {
+      background: linear-gradient(155deg, #0b1020, #24234e 58%, #5048a8);
+    }
+  }
+</style>

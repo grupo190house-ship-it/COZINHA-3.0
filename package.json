@@ -1,0 +1,22 @@
+{
+  "name": "cozinhaflow-erp",
+  "version": "1.5.0",
+  "private": true,
+  "description": "ERP mobile-first para produção, estoque, perdas e tarefas operacionais no Google Apps Script.",
+  "type": "module",
+  "scripts": {
+    "test": "node scripts/validate-project.mjs && node scripts/test-business-rules.mjs",
+    "preview": "node dev-preview.mjs",
+    "clasp:login": "clasp login",
+    "clasp:push": "clasp push",
+    "clasp:pull": "clasp pull",
+    "clasp:open": "clasp open",
+    "clasp:deploy": "clasp push && clasp deploy"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@google/clasp": "3.3.0"
+  }
+}

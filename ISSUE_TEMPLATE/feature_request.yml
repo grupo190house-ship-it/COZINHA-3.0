@@ -1,0 +1,33 @@
+name: Sugerir melhoria
+description: Proponha uma função ou melhoria de operação
+title: "[Melhoria] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Necessidade
+      description: Qual problema operacional precisa ser resolvido?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Solução desejada
+      description: Explique como imagina o fluxo.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Tarefas
+        - Produção
+        - Estoque
+        - Perdas
+        - Compras
+        - Inventário
+        - Relatórios
+        - Acessos
+        - Outra

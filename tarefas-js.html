@@ -1,0 +1,357 @@
+<script>
+  (() => {
+    let tasks = [];
+    let assignees = [];
+    let bound = false;
+    let mobileStatus = 'A fazer';
+    const statuses = [
+      { value: 'A fazer', title: 'A fazer', icon: 'assignment', tone: 'todo' },
+      { value: 'Em andamento', title: 'Em andamento', icon: 'pending_actions', tone: 'doing' },
+      { value: 'Concluída', title: 'Concluídas', icon: 'verified', tone: 'done' }
+    ];
+
+    const isAdmin = () => App.state.user?.role === 'Administrador';
+    const isOwner = task => String(task.RESPONSAVEL_ID) === String(App.state.user?.id);
+    const isOverdue = task => task.PRAZO && !['Concluída', 'Cancelada'].includes(task.STATUS) &&
+      new Date(task.PRAZO).getTime() < Date.now();
+    const priorityTone = priority => ({ Urgente: 'urgent', Alta: 'high', Normal: 'normal', Baixa: 'low' }[priority] || 'normal');
+
+    async function load() {
+      if (!bound) bind();
+      document.getElementById('taskBoard').innerHTML = statuses.map(column => `
+        <section class="task-column ${column.tone} ${column.value === mobileStatus ? 'mobile-active' : ''}" data-task-status="${column.value}">
+          <header class="task-column-head"><span class="skeleton" style="width:120px"></span></header>
+          ${UI.skeleton(3)}
+        </section>`).join('');
+      const requests = [App.server('tarefas.list')];
+      if (isAdmin()) requests.push(App.server('tarefas.assignees'));
+      const result = await Promise.all(requests);
+      tasks = result[0] || [];
+      assignees = result[1] || [];
+      renderRoleControls();
+      render();
+    }
+
+    function renderRoleControls() {
+      const newButton = document.getElementById('newTaskButton');
+      const assigneeFilter = document.getElementById('taskAssigneeFilter');
+      newButton.classList.toggle('d-none', !isAdmin());
+      assigneeFilter.classList.toggle('d-none', !isAdmin());
+      if (isAdmin()) {
+        assigneeFilter.innerHTML = '<option value="">Todos os operadores</option>' +
+          assignees.map(item => `<option value="${UI.esc(item.id)}">${UI.esc(item.name)} · ${UI.esc(item.role)}</option>`).join('');
+      }
+    }
+
+    function filteredTasks() {
+      const query = document.getElementById('taskSearch').value.trim().toLowerCase();
+      const assignee = document.getElementById('taskAssigneeFilter').value;
+      const priority = document.getElementById('taskPriorityFilter').value;
+      return tasks.filter(task => {
+        const haystack = [task.TITULO, task.DESCRICAO, task.RESPONSAVEL_NOME].join(' ').toLowerCase();
+        return (!query || haystack.includes(query)) &&
+          (!assignee || String(task.RESPONSAVEL_ID) === String(assignee)) &&
+          (!priority || task.PRIORIDADE === priority);
+      });
+    }
+
+    function render() {
+      const visible = filteredTasks();
+      document.getElementById('taskBoard').innerHTML = statuses.map(column => {
+        const rows = visible.filter(task => task.STATUS === column.value);
+        return `
+          <section class="task-column ${column.tone} ${column.value === mobileStatus ? 'mobile-active' : ''}" data-task-status="${UI.esc(column.value)}">
+            <header class="task-column-head">
+              <span class="task-column-title"><span class="material-symbols-rounded">${column.icon}</span>${column.title}</span>
+              <span class="task-column-count">${rows.length}</span>
+            </header>
+            <div class="task-column-list">
+              ${rows.length ? rows.map(taskCard).join('') : `
+                <div class="task-column-empty">
+                  <span class="material-symbols-rounded">inbox</span>
+                  <span>Nenhuma tarefa nesta etapa.</span>
+                </div>`}
+            </div>
+          </section>`;
+      }).join('');
+      renderMobileTabs(visible);
+
+      const canceled = visible.filter(task => task.STATUS === 'Cancelada');
+      document.getElementById('taskArchiveCount').textContent = canceled.length;
+      document.getElementById('taskArchiveList').innerHTML = canceled.length
+        ? canceled.map(taskCard).join('')
+        : UI.empty('Nenhuma tarefa cancelada.');
+
+      document.getElementById('taskStatTodo').textContent = tasks.filter(task => task.STATUS === 'A fazer').length;
+      document.getElementById('taskStatDoing').textContent = tasks.filter(task => task.STATUS === 'Em andamento').length;
+      document.getElementById('taskStatDone').textContent = tasks.filter(task =>
+        task.STATUS === 'Concluída' && String(task.CONCLUIDO_EM).substring(0, 10) === UI.today()).length;
+      document.getElementById('taskStatOverdue').textContent = tasks.filter(isOverdue).length;
+    }
+
+    function renderMobileTabs(visible) {
+      const countIds = {
+        'A fazer': 'taskMobileTodoCount',
+        'Em andamento': 'taskMobileDoingCount',
+        'Concluída': 'taskMobileDoneCount'
+      };
+      statuses.forEach(column => {
+        const count = visible.filter(task => task.STATUS === column.value).length;
+        document.getElementById(countIds[column.value]).textContent = count;
+      });
+      document.querySelectorAll('[data-task-mobile-status]').forEach(button => {
+        const active = button.dataset.taskMobileStatus === mobileStatus;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', String(active));
+      });
+    }
+
+    function taskCard(task) {
+      const overdue = isOverdue(task);
+      const description = task.DESCRICAO
+        ? `<p class="task-card-description">${UI.esc(task.DESCRICAO)}</p>`
+        : '';
+      const actions = [];
+      if (task.STATUS === 'A fazer' && isOwner(task)) {
+        actions.push(taskAction('play_arrow', 'Iniciar tarefa', 'start', task.ID, 'primary'));
+      }
+      if (task.STATUS === 'Em andamento' && isOwner(task)) {
+        actions.push(taskAction('task_alt', 'Concluir com foto', 'complete', task.ID, 'primary'));
+      }
+      if (task.STATUS === 'Concluída' && task.TEM_FOTO) {
+        actions.push(taskAction('photo_camera', 'Ver comprovante', 'evidence', task.ID, 'light'));
+      }
+      if (isAdmin() && ['A fazer', 'Em andamento'].includes(task.STATUS)) {
+        actions.push(taskAction('edit', 'Editar', 'edit', task.ID, 'light', true));
+        actions.push(taskAction('cancel', 'Cancelar', 'cancel', task.ID, 'light', true));
+      }
+      if (isAdmin() && ['Concluída', 'Cancelada'].includes(task.STATUS)) {
+        actions.push(taskAction('replay', 'Reabrir', 'reopen', task.ID, 'light', true));
+      }
+      return `
+        <article class="task-card ${overdue ? 'is-overdue' : ''}" data-task-id="${UI.esc(task.ID)}">
+          <div class="task-card-top">
+            <span class="task-priority ${priorityTone(task.PRIORIDADE)}"><span></span>${UI.esc(task.PRIORIDADE || 'Normal')}</span>
+            ${overdue ? '<span class="task-overdue-label"><span class="material-symbols-rounded">schedule</span>Atrasada</span>' : ''}
+          </div>
+          <h3>${UI.esc(task.TITULO)}</h3>
+          ${description}
+          <div class="task-card-meta">
+            <span><span class="material-symbols-rounded">person</span>${UI.esc(task.RESPONSAVEL_NOME)}</span>
+            <span class="${overdue ? 'text-danger' : ''}"><span class="material-symbols-rounded">event</span>${task.PRAZO ? UI.date(task.PRAZO) : 'Sem prazo'}</span>
+            ${task.STATUS === 'Concluída' ? `<span class="text-success"><span class="material-symbols-rounded">check_circle</span>${UI.date(task.CONCLUIDO_EM)}</span>` : ''}
+          </div>
+          ${task.STATUS === 'Concluída' && task.OBSERVACAO_CONCLUSAO ? `<div class="task-completion-note"><strong>Observação:</strong> ${UI.esc(task.OBSERVACAO_CONCLUSAO)}</div>` : ''}
+          ${actions.length ? `<div class="task-card-actions">${actions.join('')}</div>` : ''}
+        </article>`;
+    }
+
+    function taskAction(icon, label, action, id, tone, compact) {
+      return `<button type="button" class="btn btn-${tone} ${compact ? 'task-icon-action' : 'flex-grow-1'}" data-task-action="${action}" data-task-id="${UI.esc(id)}" title="${UI.esc(label)}">
+        <span class="material-symbols-rounded">${icon}</span>${compact ? '' : `<span>${UI.esc(label)}</span>`}
+      </button>`;
+    }
+
+    function openTaskForm(task = {}) {
+      if (!assignees.length) {
+        UI.openModal({
+          title: 'Cadastre o acesso do operador',
+          eyebrow: 'Equipe',
+          size: 'sm',
+          body: '<p class="text-secondary mb-0">Para atribuir uma tarefa, crie primeiro um <strong>usuário do sistema</strong> com perfil Operador ou Supervisor na tela Operadores.</p>',
+          footer: '<button type="button" class="btn btn-light" data-bs-dismiss="modal">Fechar</button><button id="goToUsersButton" type="button" class="btn btn-primary">Ir para Operadores</button>'
+        });
+        document.getElementById('goToUsersButton').onclick = () => {
+          UI.closeModal();
+          App.navigate('operadores');
+        };
+        return;
+      }
+      const deadline = String(task.PRAZO || '').substring(0, 16);
+      const options = assignees.map(item => ({
+        id: item.id,
+        name: `${item.name} · ${item.role}${item.email ? ` · ${item.email}` : ''}`
+      }));
+      UI.openModal({
+        title: task.ID ? 'Editar tarefa' : 'Nova tarefa',
+        eyebrow: 'Distribuição de atividades',
+        formId: 'modalForm',
+        submitText: task.ID ? 'Salvar alterações' : 'Enviar ao operador',
+        body: `
+          <form id="modalForm" class="row g-3">
+            <input type="hidden" name="ID" value="${UI.esc(task.ID || '')}">
+            <div class="col-12">
+              <label class="form-label">Função ou tarefa</label>
+              <input name="TITULO" class="form-control" maxlength="160" value="${UI.esc(task.TITULO || '')}" placeholder="Ex.: Limpar o forno industrial" required>
+              <small class="form-text text-secondary">O texto digitado aqui será a atividade exibida ao operador.</small>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Orientações</label>
+              <textarea name="DESCRICAO" class="form-control" rows="4" maxlength="1500" placeholder="Explique como a atividade deve ser realizada...">${UI.esc(task.DESCRICAO || '')}</textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Operador responsável</label>
+              <select name="RESPONSAVEL_ID" class="form-select" required>${UI.options(options, task.RESPONSAVEL_ID, 'Selecione o operador...')}</select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Prioridade</label>
+              <select name="PRIORIDADE" class="form-select" required>
+                ${['Baixa', 'Normal', 'Alta', 'Urgente'].map(value => `<option ${value === (task.PRIORIDADE || 'Normal') ? 'selected' : ''}>${value}</option>`).join('')}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Prazo</label>
+              <input name="PRAZO" type="datetime-local" class="form-control" value="${UI.esc(deadline)}">
+            </div>
+          </form>`,
+        onSubmit: async form => {
+          await App.server('tarefas.save', form);
+          UI.toast(task.ID ? 'Tarefa atualizada.' : 'Tarefa enviada ao operador.');
+          await load();
+        }
+      });
+    }
+
+    async function startTask(task) {
+      if (!await UI.confirm('Iniciar tarefa', `Deseja iniciar “${task.TITULO}”?`, 'Iniciar')) return;
+      await App.server('tarefas.start', { id: task.ID });
+      mobileStatus = 'Em andamento';
+      UI.toast('Tarefa movida para Em andamento.');
+      await load();
+    }
+
+    function completeTask(task) {
+      UI.openModal({
+        title: 'Concluir tarefa',
+        eyebrow: 'Confirmação obrigatória',
+        formId: 'taskCompleteForm',
+        submitText: 'Confirmar conclusão',
+        body: `
+          <form id="taskCompleteForm" class="row g-3">
+            <input type="hidden" name="id" value="${UI.esc(task.ID)}">
+            <div class="col-12">
+              <div class="task-complete-summary">
+                <span class="material-symbols-rounded">assignment_turned_in</span>
+                <div><small>Tarefa</small><strong>${UI.esc(task.TITULO)}</strong></div>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Foto da atividade concluída</label>
+              <input id="taskEvidenceFile" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" class="form-control" required>
+              <small class="form-text text-secondary">Tire uma foto nítida do resultado. Máximo de 5 MB.</small>
+              <div id="taskPhotoPreview" class="task-photo-preview d-none"></div>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Observação da conclusão (opcional)</label>
+              <textarea name="OBSERVACAO_CONCLUSAO" class="form-control" rows="3" maxlength="1000" placeholder="Informe algum detalhe importante..."></textarea>
+            </div>
+            <div class="col-12">
+              <label class="task-confirm-check">
+                <input name="CONFIRMADO" type="checkbox" class="form-check-input" required>
+                <span><strong>Confirmo que executei esta tarefa.</strong><small>A conclusão ficará registrada com meu usuário, data, hora e foto.</small></span>
+              </label>
+            </div>
+          </form>`,
+        onSubmit: async form => {
+          if (form.CONFIRMADO !== true) throw new Error('Marque a confirmação de execução.');
+          const upload = await UI.uploadImageDetails(document.getElementById('taskEvidenceFile'));
+          if (!upload) throw new Error('A foto de conclusão é obrigatória.');
+          await App.server('tarefas.complete', {
+            id: task.ID,
+            CONFIRMADO: true,
+            FOTO_ID: upload.id,
+            OBSERVACAO_CONCLUSAO: form.OBSERVACAO_CONCLUSAO || ''
+          });
+          mobileStatus = 'Concluída';
+          UI.toast('Tarefa concluída e comprovante registrado.');
+          await load();
+        }
+      });
+      const input = document.getElementById('taskEvidenceFile');
+      input.onchange = () => {
+        const preview = document.getElementById('taskPhotoPreview');
+        const file = input.files?.[0];
+        if (!file) { preview.classList.add('d-none'); preview.innerHTML = ''; return; }
+        const url = URL.createObjectURL(file);
+        preview.innerHTML = `<img src="${url}" alt="Prévia da foto"><span>Foto selecionada</span>`;
+        preview.classList.remove('d-none');
+      };
+    }
+
+    async function showEvidence(task) {
+      UI.openModal({
+        title: 'Carregando comprovante',
+        eyebrow: 'Evidência da conclusão',
+        body: UI.skeleton(5),
+        footer: '<button type="button" class="btn btn-light" data-bs-dismiss="modal">Fechar</button>'
+      });
+      try {
+        const evidence = await App.server('tarefas.evidence', { id: task.ID });
+        document.getElementById('modalTitle').textContent = evidence.title;
+        document.getElementById('modalBody').innerHTML = `
+          <div class="task-evidence">
+            <img src="${evidence.dataUrl}" alt="Foto de conclusão de ${UI.esc(evidence.title)}">
+            <div class="task-evidence-info">
+              <span><span class="material-symbols-rounded">person</span><strong>${UI.esc(evidence.operator)}</strong></span>
+              <span><span class="material-symbols-rounded">schedule</span>${UI.date(evidence.completedAt)}</span>
+            </div>
+            ${evidence.observation ? `<p><strong>Observação:</strong> ${UI.esc(evidence.observation)}</p>` : ''}
+          </div>`;
+      } catch (error) {
+        UI.closeModal();
+        UI.toast(error.message, 'danger');
+      }
+    }
+
+    async function cancelTask(task) {
+      if (!await UI.confirm('Cancelar tarefa', `Cancelar “${task.TITULO}”? O registro permanecerá no arquivo.`, 'Cancelar tarefa', true)) return;
+      await App.server('tarefas.cancel', { id: task.ID });
+      UI.toast('Tarefa cancelada.', 'warning');
+      await load();
+    }
+
+    async function reopenTask(task) {
+      if (!await UI.confirm('Reabrir tarefa', `Reabrir “${task.TITULO}”? O operador precisará enviar uma nova foto.`, 'Reabrir')) return;
+      await App.server('tarefas.reopen', { id: task.ID });
+      mobileStatus = 'A fazer';
+      UI.toast('Tarefa reaberta e devolvida ao operador.');
+      await load();
+    }
+
+    async function handleAction(action, id) {
+      const task = tasks.find(item => String(item.ID) === String(id));
+      if (!task) return;
+      try {
+        if (action === 'edit') openTaskForm(task);
+        if (action === 'start') await startTask(task);
+        if (action === 'complete') completeTask(task);
+        if (action === 'evidence') await showEvidence(task);
+        if (action === 'cancel') await cancelTask(task);
+        if (action === 'reopen') await reopenTask(task);
+      } catch (error) {
+        UI.toast(error.message, 'danger');
+      }
+    }
+
+    function bind() {
+      bound = true;
+      document.getElementById('newTaskButton').onclick = () => openTaskForm();
+      document.getElementById('refreshTasksButton').onclick = load;
+      document.getElementById('taskSearch').addEventListener('input', UI.debounce(render, 120));
+      document.getElementById('taskAssigneeFilter').onchange = render;
+      document.getElementById('taskPriorityFilter').onchange = render;
+      document.getElementById('view-tarefas').addEventListener('click', event => {
+        const tab = event.target.closest('[data-task-mobile-status]');
+        if (tab) {
+          mobileStatus = tab.dataset.taskMobileStatus;
+          render();
+          return;
+        }
+        const button = event.target.closest('[data-task-action]');
+        if (button) handleAction(button.dataset.taskAction, button.dataset.taskId);
+      });
+    }
+
+    window.ModuleLoaders.tarefas = load;
+  })();
+</script>

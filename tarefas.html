@@ -1,0 +1,72 @@
+<section id="view-tarefas" class="page-view">
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">Rotina da equipe</span>
+      <h1>Quadro de tarefas</h1>
+      <p>Distribua atividades livres e acompanhe a execução com confirmação e foto.</p>
+    </div>
+    <div class="page-actions">
+      <button id="newTaskButton" class="btn btn-primary d-none">
+        <span class="material-symbols-rounded">add_task</span>Nova tarefa
+      </button>
+    </div>
+  </div>
+
+  <div class="task-summary-grid">
+    <article class="task-summary-card card-surface">
+      <span class="task-summary-icon todo"><span class="material-symbols-rounded">assignment</span></span>
+      <div><small>A fazer</small><strong id="taskStatTodo">0</strong></div>
+    </article>
+    <article class="task-summary-card card-surface">
+      <span class="task-summary-icon doing"><span class="material-symbols-rounded">pending_actions</span></span>
+      <div><small>Em andamento</small><strong id="taskStatDoing">0</strong></div>
+    </article>
+    <article class="task-summary-card card-surface">
+      <span class="task-summary-icon done"><span class="material-symbols-rounded">verified</span></span>
+      <div><small>Concluídas hoje</small><strong id="taskStatDone">0</strong></div>
+    </article>
+    <article class="task-summary-card card-surface">
+      <span class="task-summary-icon overdue"><span class="material-symbols-rounded">notification_important</span></span>
+      <div><small>Atrasadas</small><strong id="taskStatOverdue">0</strong></div>
+    </article>
+  </div>
+
+  <div class="task-toolbar card-surface">
+    <div class="input-icon task-search">
+      <span class="material-symbols-rounded">search</span>
+      <input id="taskSearch" class="form-control" type="search" autocomplete="off" placeholder="Buscar tarefa, descrição ou operador...">
+    </div>
+    <select id="taskAssigneeFilter" class="form-select d-none">
+      <option value="">Todos os operadores</option>
+    </select>
+    <select id="taskPriorityFilter" class="form-select">
+      <option value="">Todas as prioridades</option>
+      <option>Urgente</option>
+      <option>Alta</option>
+      <option>Normal</option>
+      <option>Baixa</option>
+    </select>
+    <button id="refreshTasksButton" class="btn btn-light" type="button">
+      <span class="material-symbols-rounded">refresh</span>Atualizar
+    </button>
+  </div>
+
+  <div id="taskMobileTabs" class="task-mobile-tabs" role="tablist" aria-label="Etapas das tarefas">
+    <button type="button" class="task-mobile-tab todo active" role="tab" aria-selected="true" data-task-mobile-status="A fazer">
+      <span>A fazer</span><strong id="taskMobileTodoCount">0</strong>
+    </button>
+    <button type="button" class="task-mobile-tab doing" role="tab" aria-selected="false" data-task-mobile-status="Em andamento">
+      <span>Em andamento</span><strong id="taskMobileDoingCount">0</strong>
+    </button>
+    <button type="button" class="task-mobile-tab done" role="tab" aria-selected="false" data-task-mobile-status="Concluída">
+      <span>Concluídas</span><strong id="taskMobileDoneCount">0</strong>
+    </button>
+  </div>
+
+  <div id="taskBoard" class="task-board" aria-live="polite"></div>
+
+  <details id="taskArchivePanel" class="task-archive card-surface">
+    <summary><span class="material-symbols-rounded">archive</span>Canceladas <span id="taskArchiveCount" class="badge-soft ms-auto">0</span></summary>
+    <div id="taskArchiveList" class="task-archive-list"></div>
+  </details>
+</section>

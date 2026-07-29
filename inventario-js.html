@@ -1,0 +1,118 @@
+<script>
+  (() => {
+    let rows = [];
+    const catalogs = { INSUMO: [], PRODUTO: [] };
+    async function load() {
+      document.getElementById('newInventoryButton').classList.toggle('d-none', !App.canWrite('inventarios'));
+      document.getElementById('quickInventoryButton').classList.toggle('d-none', !App.canWrite('inventarios'));
+      document.getElementById('inventoriesTable').innerHTML = UI.skeleton();
+      const result = await Promise.all([
+        App.server('inventarios.list'),
+        App.server('insumos.list'),
+        App.server('produtos.list')
+      ]);
+      rows = result[0];
+      catalogs.INSUMO = result[1];
+      catalogs.PRODUTO = result[2];
+      UI.renderTable('inventoriesTable', rows, [
+        { key:'NUMERO',label:'Número' }, { key:'TIPO',label:'Tipo',render:UI.badge },
+        { key:'ITEM_CODIGO',label:'Código' }, { key:'ITEM_NOME',label:'Item',render:value=>`<strong>${UI.esc(value)}</strong>` },
+        { key:'TIPO_ESTOQUE',label:'Tipo',render:value=>value==='INSUMO'?'Insumo':'Produto produzido' }, { key:'SALDO_ESPERADO',label:'Esperado',render:(value,row)=>value===''?'Oculto':`${UI.number(value)} ${UI.esc(row.UNIDADE || '')}` },
+        { key:'QUANTIDADE_CONTADA',label:'Contado',render:(value,row)=>value===''?'—':`${UI.number(value)} ${UI.esc(row.UNIDADE || '')}` },
+        { key:'DIFERENCA',label:'Diferença',render:(value,row)=>value===''?'—':`<span class="${Number(value)!==0?'text-danger':''}">${UI.number(value)} ${UI.esc(row.UNIDADE || '')}</span>` },
+        { key:'DATA_HORA',label:'Data',render:UI.date }, { key:'STATUS',label:'Status',render:UI.badge },
+        { key:'_actions',label:'Ações',render:(_,row)=>row.STATUS==='Pendente'&&App.canWrite('inventarios')?UI.actionButton('pin','Contar','count',row.ID):'' }
+      ], { exportName:'inventarios', onAction:(action,id,row)=>countForm(row) });
+    }
+    function quickForm() {
+      const optionRows = type => catalogs[type].filter(item => item.STATUS === 'Ativo').map(item => ({
+        id: item.ID,
+        name: `${item.NOME} — saldo ${UI.number(item.ESTOQUE_ATUAL)} ${item.UNIDADE || ''}`
+      }));
+      if (!optionRows('INSUMO').length && !optionRows('PRODUTO').length) {
+        UI.toast('Cadastre ao menos um item antes de fazer a contagem.', 'warning');
+        return;
+      }
+      UI.openModal({
+        title:'Contagem rápida',eyebrow:'Conferência imediata',formId:'modalForm',submitText:'Concluir contagem',
+        body:`<form id="modalForm" class="row g-3">
+          <div class="col-md-6"><label class="form-label">Tipo de estoque</label><select id="quickInventoryType" name="TIPO_ESTOQUE" class="form-select" required>${UI.options(['INSUMO','PRODUTO'],'INSUMO')}</select></div>
+          <div class="col-md-6"><label class="form-label">Item</label><select id="quickInventoryItem" name="ITEM_ID" class="form-select" required>${UI.options(optionRows('INSUMO'))}</select></div>
+          <div class="col-md-6"><label class="form-label">Quantidade encontrada</label><input id="quickInventoryQuantity" name="QUANTIDADE_CONTADA" type="number" min="0" step="0.0001" class="form-control" required></div>
+          <div class="col-md-6"><label class="form-label">Supervisor</label><select name="SUPERVISOR_ID" class="form-select">${UI.options(App.state.lookups.operators)}</select></div>
+          <div class="col-12"><div class="alert alert-info mb-0"><strong>Diferença:</strong> <span id="quickInventoryDifference">selecione o item e informe a contagem</span></div></div>
+          <div class="col-12"><label class="form-label">Justificativa <span class="text-secondary">(obrigatória se houver diferença)</span></label><textarea id="quickInventoryReason" name="MOTIVO" class="form-control" rows="3"></textarea></div>
+          <div class="col-12"><label class="form-label">Foto da conferência (opcional)</label><input id="quickInventoryPhoto" type="file" accept="image/jpeg,image/png,image/webp" class="form-control"></div>
+        </form>`,
+        onSubmit:async form=>{
+          const photo=await UI.uploadImage(document.getElementById('quickInventoryPhoto'));
+          if(photo)form.FOTO=photo;
+          const result=await App.server('inventarios.quick',form);
+          UI.toast(Number(result.DIFERENCA)===0?'Estoque conferido sem diferença.':'Contagem concluída e estoque ajustado.',Number(result.DIFERENCA)===0?'success':'warning');
+          await load();
+        }
+      });
+      const updateOptions = () => {
+        const type = document.getElementById('quickInventoryType').value;
+        document.getElementById('quickInventoryItem').innerHTML = UI.options(optionRows(type));
+        updateDifference();
+      };
+      const updateDifference = () => {
+        const type = document.getElementById('quickInventoryType').value;
+        const item = catalogs[type].find(row => String(row.ID) === String(document.getElementById('quickInventoryItem').value));
+        const countedRaw = document.getElementById('quickInventoryQuantity').value;
+        const target = document.getElementById('quickInventoryDifference');
+        if (!item || countedRaw === '') {
+          target.textContent = 'selecione o item e informe a contagem';
+          document.getElementById('quickInventoryReason').required = false;
+          return;
+        }
+        const difference = Number(countedRaw) - Number(item.ESTOQUE_ATUAL || 0);
+        target.textContent = `${difference > 0 ? '+' : ''}${UI.number(difference)} ${item.UNIDADE || ''}`;
+        target.className = difference === 0 ? 'text-success' : 'text-danger';
+        document.getElementById('quickInventoryReason').required = difference !== 0;
+      };
+      document.getElementById('quickInventoryType').onchange = updateOptions;
+      document.getElementById('quickInventoryItem').onchange = updateDifference;
+      document.getElementById('quickInventoryQuantity').oninput = updateDifference;
+    }
+    function createForm() {
+      UI.openModal({
+        title:'Contagem do fim do expediente',eyebrow:'Conferência completa',formId:'modalForm',submitText:'Listar itens para contagem',
+        body:`<form id="modalForm" class="row g-3">
+          <div class="col-md-6"><label class="form-label">Periodicidade</label><select name="TIPO" class="form-select" required>${UI.options(['Diário','Semanal','Mensal','Geral','Cego'],'Diário')}</select></div>
+          <div class="col-md-6"><label class="form-label">Itens da contagem</label><select id="inventoryStockType" name="TIPO_ESTOQUE" class="form-select" required><option value="TODOS">Todos: insumos e produtos</option><option value="INSUMO">Somente insumos</option><option value="PRODUTO">Somente produtos produzidos</option></select></div>
+          <div class="col-12" id="inventoryItemField"><label class="form-label">Item específico (opcional)</label><select id="inventoryItem" name="ITEM_ID" class="form-select"><option value="">Todos os itens</option></select><small class="text-secondary">Na opção “Todos”, serão listados todos os insumos e produtos ativos, inclusive os que estão com saldo zero.</small></div>
+          <div class="col-md-6"><label class="form-label">Operador</label><select name="OPERADOR_ID" class="form-select">${UI.options(App.state.lookups.operators)}</select></div>
+          <div class="col-md-6"><label class="form-label">Supervisor</label><select name="SUPERVISOR_ID" class="form-select">${UI.options(App.state.lookups.operators)}</select></div>
+          <div class="col-12"><label class="form-label">Motivo / observação</label><textarea name="MOTIVO" class="form-control" rows="3"></textarea></div>
+        </form>`,
+        onSubmit:async form=>{const created=await App.server('inventarios.create',form);UI.toast(`Contagem aberta com ${created.length} item(ns). Informe a quantidade encontrada em cada um.`);await load();}
+      });
+      document.getElementById('inventoryStockType').onchange=event=>{
+        const type=event.target.value;
+        const field=document.getElementById('inventoryItemField');
+        field.classList.toggle('d-none',type==='TODOS');
+        document.getElementById('inventoryItem').innerHTML=type==='TODOS'?'<option value="">Todos os itens</option>':UI.options(type==='INSUMO'?App.state.lookups.inputs:App.state.lookups.products,'','Todos os itens');
+      };
+    }
+    function countForm(row) {
+      const isBlind=row.TIPO==='Cego';
+      UI.openModal({
+        title:`Contar ${row.ITEM_NOME}`,eyebrow:isBlind?'Inventário cego':'Conferência',formId:'modalForm',submitText:'Concluir contagem',
+        body:`<form id="modalForm" class="row g-3"><input type="hidden" name="ID" value="${UI.esc(row.ID)}">
+          <div class="col-12"><div class="alert alert-light"><strong>${UI.esc(row.ITEM_NOME)}</strong> · ${row.TIPO_ESTOQUE==='INSUMO'?'Insumo':'Produto produzido'}${isBlind?' · saldo esperado oculto':` · esperado: ${UI.number(row.SALDO_ESPERADO)} ${UI.esc(row.UNIDADE || '')}`}</div></div>
+          <div class="col-md-6"><label class="form-label">Quantidade encontrada</label><input name="QUANTIDADE_CONTADA" type="number" min="0" step="0.0001" class="form-control" required></div>
+          <div class="col-md-6"><label class="form-label">Supervisor</label><select name="SUPERVISOR_ID" class="form-select">${UI.options(App.state.lookups.operators)}</select></div>
+          <div class="col-12"><label class="form-label">Justificativa (obrigatória se houver diferença)</label><textarea name="MOTIVO" class="form-control" rows="3"></textarea></div>
+          <div class="col-md-6"><label class="form-label">Foto da evidência</label><input id="inventoryPhotoFile" type="file" accept="image/jpeg,image/png,image/webp" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Assinatura / identificação</label><input name="ASSINATURA" class="form-control"></div>
+        </form>`,
+        onSubmit:async form=>{const photo=await UI.uploadImage(document.getElementById('inventoryPhotoFile'));if(photo)form.FOTO=photo;const result=await App.server('inventarios.count',form);UI.toast(Number(result.DIFERENCA)===0?'Contagem conferida sem diferença.':'Contagem concluída e ajuste registrado.',Number(result.DIFERENCA)===0?'success':'warning');await load();}
+      });
+    }
+    document.getElementById('newInventoryButton').onclick=createForm;
+    document.getElementById('quickInventoryButton').onclick=quickForm;
+    window.ModuleLoaders.inventario=load;
+  })();
+</script>

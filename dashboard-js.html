@@ -1,0 +1,63 @@
+<script>
+  (() => {
+    let bound = false;
+    const metricMap = {
+      lowStock: ['metricLowStock', UI.number],
+      productionToday: ['metricProductionToday', UI.number],
+      productionsInProgress: ['metricProductionsInProgress', UI.number],
+      productsInStock: ['metricProductsInStock', UI.number],
+      pendingPurchases: ['metricPurchases', UI.number],
+      lossesToday: ['metricLossesToday', UI.currency]
+    };
+
+    function renderOnboarding(onboarding) {
+      const card = document.getElementById('onboardingCard');
+      card.classList.toggle('onboarding-complete', onboarding.complete);
+      document.getElementById('onboardingProgress').textContent = onboarding.complete
+        ? 'Ambiente pronto'
+        : `${onboarding.completed}/${onboarding.total}`;
+      document.getElementById('onboardingSteps').innerHTML = onboarding.steps.map(step => `
+        <button class="onboarding-step ${step.complete ? 'complete' : ''}" data-navigate="${UI.esc(step.module)}">
+          <span class="material-symbols-rounded">${step.complete ? 'check_circle' : 'radio_button_unchecked'}</span>
+          <span>${UI.esc(step.label)}</span>
+          <span class="material-symbols-rounded ms-auto">chevron_right</span>
+        </button>
+      `).join('');
+    }
+
+    async function load() {
+      if (!bound) bind();
+      document.querySelectorAll('#view-dashboard .metric-value').forEach(item => item.textContent = '…');
+      const data = await App.server('dashboard.get');
+      Object.entries(metricMap).forEach(([key, [id, format]]) => {
+        document.getElementById(id).textContent = format(data.cards[key]);
+      });
+      document.getElementById('dashboardGreeting').textContent = `Olá, ${App.state.user.name.split(' ')[0]}. Resumo de ${UI.date(data.date)}.`;
+      renderOnboarding(data.onboarding);
+      document.getElementById('dashboardLowStock').innerHTML = data.lowStock.length
+        ? data.lowStock.map(item => `
+          <div class="operation-row">
+            <span class="operation-icon danger"><span class="material-symbols-rounded">production_quantity_limits</span></span>
+            <div class="flex-grow-1"><strong>${UI.esc(item.name)}</strong><small>Saldo ${UI.number(item.balance)} ${UI.esc(item.unit)} · mínimo ${UI.number(item.minimum)}</small></div>
+            <button class="btn btn-sm btn-light" data-navigate="compras">Comprar</button>
+          </div>
+        `).join('')
+        : UI.empty('Todos os insumos estão acima do mínimo.');
+      document.getElementById('dashboardProductions').innerHTML = data.activeProductions.length
+        ? data.activeProductions.map(item => `
+          <div class="operation-row">
+            <span class="operation-icon warning"><span class="material-symbols-rounded">precision_manufacturing</span></span>
+            <div class="flex-grow-1"><strong>${UI.esc(item.product)}</strong><small>${UI.esc(item.code)} · ${UI.esc(item.operator)} · ${UI.date(item.startedAt)}</small></div>
+            <button class="btn btn-sm btn-primary" data-navigate="producao">Finalizar</button>
+          </div>
+        `).join('')
+        : UI.empty('Nenhuma produção em andamento.');
+    }
+
+    function bind() {
+      bound = true;
+      document.getElementById('refreshDashboard').onclick = load;
+    }
+    window.ModuleLoaders.dashboard = load;
+  })();
+</script>

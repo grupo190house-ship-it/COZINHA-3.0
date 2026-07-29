@@ -1,0 +1,217 @@
+<script>
+  window.ModuleLoaders = window.ModuleLoaders || {};
+  const App = (() => {
+    const state = { token: '', user: null, acl: [], config: {}, enums: {}, lookups: null, notifications: [], currentModule: 'dashboard' };
+    const tokenKey = 'cozinhaflow_token';
+    const getToken = () => sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey) || '';
+    const setToken = (token, remember) => {
+      sessionStorage.removeItem(tokenKey); localStorage.removeItem(tokenKey);
+      (remember ? localStorage : sessionStorage).setItem(tokenKey, token);
+      state.token = token;
+    };
+    const clearToken = () => { sessionStorage.removeItem(tokenKey); localStorage.removeItem(tokenKey); state.token = ''; };
+    const server = (action, payload = {}) => new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(response => {
+          if (!response?.ok) {
+            const error = new Error(response?.error || 'Não foi possível concluir a operação.');
+            error.code = response?.code;
+            if (error.code === 'UNAUTHENTICATED') signedOut();
+            reject(error);
+          } else resolve(response.data);
+        })
+        .withFailureHandler(error => reject(new Error(error.message || String(error))))
+        .apiRequest(action, payload, state.token || getToken());
+    });
+    async function boot() {
+      Login.bind();
+      bindGlobalEvents();
+      const bootstrap = await Login.publicCall('publicBootstrap');
+      state.token = getToken();
+      if (bootstrap.installed && state.token) {
+        try { await start(); return; } catch (error) { clearToken(); }
+      }
+      Login.show(bootstrap.installed, bootstrap);
+    }
+    async function start() {
+      state.token = state.token || getToken();
+      const data = await server('session.me');
+      state.user = data.user;
+      state.acl = data.acl || [];
+      state.config = data.config || {};
+      state.enums = data.enums || {};
+      state.notifications = data.notifications || [];
+      state.lookups = await server('lookups.get');
+      renderShell();
+      document.getElementById('bootLoader').classList.add('d-none');
+      document.getElementById('loginScreen').classList.add('d-none');
+      document.getElementById('appShell').classList.remove('d-none');
+      await navigate('dashboard');
+    }
+    function renderShell() {
+      const config = state.config;
+      document.getElementById('sidebarAppName').textContent = config.APP_NAME || 'CozinhaFlow ERP';
+      document.getElementById('sidebarCompany').textContent = config.COMPANY_NAME || '';
+      document.getElementById('userName').textContent = state.user.name;
+      document.getElementById('userRole').textContent = state.user.role;
+      document.getElementById('userAvatar').textContent = state.user.name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+      const all = state.acl.includes('*');
+      document.querySelectorAll('[data-resource]').forEach(item => {
+        const resource = item.dataset.resource;
+        const allowed = all || resource === 'dashboard' || (resource === 'admin' ? state.user.role === 'Administrador' : state.acl.includes(resource));
+        item.classList.toggle('d-none', !allowed);
+      });
+      document.getElementById('usersTabButton').classList.toggle('d-none', state.user.role !== 'Administrador');
+      document.querySelector('#profileForm [name=name]').value = state.user.name;
+      document.querySelector('#profileForm [name=email]').value = state.user.email;
+      renderNotifications();
+    }
+    async function navigate(module) {
+      const target = document.getElementById(`view-${module}`);
+      if (!target) return;
+      state.currentModule = module;
+      document.querySelectorAll('.page-view').forEach(view => view.classList.toggle('active', view === target));
+      document.querySelectorAll('.side-link[data-module]').forEach(link => link.classList.toggle('active', link.dataset.module === module));
+      document.querySelectorAll('.mobile-nav-link[data-module]').forEach(link => link.classList.toggle('active', link.dataset.module === module));
+      if (window.innerWidth <= 900) {
+        document.getElementById('sidebar').classList.remove('mobile-open');
+        document.body.classList.remove('sidebar-open');
+        document.getElementById('sidebarToggle').setAttribute('aria-expanded', 'false');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const loader = window.ModuleLoaders[module];
+      if (loader) {
+        try { await loader(); }
+        catch (error) { UI.toast(error.message, 'danger'); }
+      }
+    }
+    function bindGlobalEvents() {
+      const sidebar = document.getElementById('sidebar');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+      const setMobileSidebar = open => {
+        sidebar.classList.toggle('mobile-open', open);
+        document.body.classList.toggle('sidebar-open', open);
+        sidebarToggle.setAttribute('aria-expanded', String(open));
+      };
+      document.addEventListener('click', event => {
+        if (event.target.closest('[data-mobile-menu]')) {
+          setMobileSidebar(true);
+          return;
+        }
+        const nav = event.target.closest('[data-module],[data-navigate]');
+        if (nav) navigate(nav.dataset.module || nav.dataset.navigate);
+        const rippleTarget = event.target.closest('.btn,.side-link,.icon-btn');
+        if (rippleTarget) {
+          const dot = document.createElement('span');
+          const rect = rippleTarget.getBoundingClientRect();
+          const size = Math.max(rect.width, rect.height);
+          dot.className = 'ripple-dot';
+          Object.assign(dot.style, { width: `${size}px`, height: `${size}px`, left: `${event.clientX - rect.left - size / 2}px`, top: `${event.clientY - rect.top - size / 2}px` });
+          rippleTarget.appendChild(dot); setTimeout(() => dot.remove(), 600);
+        }
+      });
+      sidebarToggle.onclick = () => {
+        if (window.innerWidth <= 900) setMobileSidebar(!sidebar.classList.contains('mobile-open'));
+        else {
+          sidebar.classList.toggle('collapsed');
+          document.querySelector('.app-main').classList.toggle('sidebar-collapsed');
+        }
+      };
+      sidebarBackdrop.onclick = () => setMobileSidebar(false);
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 900) setMobileSidebar(false);
+      });
+      const savedTheme = localStorage.getItem('cozinhaflow_theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
+      setTheme(savedTheme);
+      document.getElementById('themeToggle').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+      document.getElementById('logoutButton').onclick = async () => {
+        if (!await UI.confirm('Encerrar sessão', 'Deseja realmente sair do sistema?', 'Sair')) return;
+        try { await server('session.logout'); } catch (_) {}
+        signedOut();
+      };
+      document.getElementById('readAllNotifications').onclick = async () => {
+        await server('notificacoes.read', { all: true });
+        state.notifications = [];
+        renderNotifications();
+      };
+      const search = document.getElementById('globalSearch');
+      search.addEventListener('input', UI.debounce(async () => {
+        const host = document.getElementById('searchResults');
+        if (search.value.trim().length < 2) { host.classList.add('d-none'); return; }
+        try {
+          const results = await server('search.global', { query: search.value });
+          host.innerHTML = results.length ? results.map(result => `<div class="search-result" data-search-module="${moduleFromSearch(result.module)}"><span class="material-symbols-rounded">search</span><div><strong class="d-block">${UI.esc(result.title)}</strong><small class="text-secondary">${UI.esc(result.type)} · ${UI.esc(result.subtitle)}</small></div></div>`).join('') : UI.empty('Nenhum resultado.');
+          host.classList.remove('d-none');
+          host.querySelectorAll('[data-search-module]').forEach(item => item.onclick = () => { host.classList.add('d-none'); search.value = ''; navigate(item.dataset.searchModule); });
+        } catch (error) { UI.toast(error.message, 'danger'); }
+      }, 300));
+      document.addEventListener('click', event => {
+        if (!event.target.closest('.global-search')) document.getElementById('searchResults').classList.add('d-none');
+      });
+      document.getElementById('profileForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = event.currentTarget.querySelector('button');
+        UI.loading(button, true);
+        try {
+          state.user = await server('profile.save', UI.formObject(event.currentTarget));
+          renderShell(); event.currentTarget.reset();
+          document.querySelector('#profileForm [name=name]').value = state.user.name;
+          document.querySelector('#profileForm [name=email]').value = state.user.email;
+          UI.toast('Perfil atualizado.');
+        } catch (error) { UI.toast(error.message, 'danger'); }
+        finally { UI.loading(button, false); }
+      });
+      document.getElementById('configForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = event.currentTarget.querySelector('button');
+        UI.loading(button, true);
+        try { state.config = await server('config.save', UI.formObject(event.currentTarget)); renderShell(); UI.toast('Configurações salvas.'); }
+        catch (error) { UI.toast(error.message, 'danger'); }
+        finally { UI.loading(button, false); }
+      });
+      window.ModuleLoaders.configuracoes = async () => {
+        state.config = await server('config.get');
+        Object.entries(state.config).forEach(([key, value]) => {
+          const input = document.querySelector(`#configForm [name="${key}"]`);
+          if (input) input.value = value;
+        });
+      };
+      window.ModuleLoaders.perfil = async () => {};
+    }
+    function setTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      localStorage.setItem('cozinhaflow_theme', theme);
+      document.querySelector('#themeToggle .material-symbols-rounded').textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+      window.dispatchEvent(new CustomEvent('themechange'));
+    }
+    function moduleFromSearch(name) {
+      const map = { insumos: 'insumos', produtos: 'produtos', fornecedores: 'fornecedores', pedidos: 'compras', operadores: 'operadores', estoque: 'estoque' };
+      return map[name] || 'dashboard';
+    }
+    function renderNotifications() {
+      const list = document.getElementById('notificationList');
+      document.getElementById('notificationDot').classList.toggle('d-none', !state.notifications.length);
+      list.innerHTML = state.notifications.length ? state.notifications.map(item => `<div class="alert-item mb-1"><span class="material-symbols-rounded text-${item.SEVERIDADE || 'info'}">notifications</span><div><strong class="d-block">${UI.esc(item.TITULO)}</strong><small class="text-secondary">${UI.esc(item.MENSAGEM)}</small></div></div>`).join('') : UI.empty('Tudo em dia por aqui.');
+    }
+    function signedOut() {
+      clearToken();
+      document.getElementById('appShell').classList.add('d-none');
+      Login.publicCall('publicBootstrap').then(data => Login.show(true, data));
+    }
+    const canWrite = resource => {
+      const role = state.user?.role;
+      if (role === 'Administrador') return true;
+      const map = {
+        Supervisor: ['tarefas','estoque','insumos','produtos','producoes','perdas','inventarios','compras','fornecedores','operadores','notificacoes'],
+        Operador: ['tarefas','producoes','perdas','inventarios'], Comprador: ['compras','fornecedores','notificacoes'], Financeiro: ['compras','notificacoes']
+      };
+      return (map[role] || []).includes(resource);
+    };
+    return { state, boot, start, server, setToken, navigate, canWrite };
+  })();
+  document.addEventListener('DOMContentLoaded', () => App.boot().catch(error => {
+    document.getElementById('bootLoader').classList.add('d-none');
+    UI.toast(error.message || 'Falha ao iniciar o sistema.', 'danger');
+  }));
+</script>

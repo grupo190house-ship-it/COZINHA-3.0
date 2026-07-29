@@ -1,0 +1,231 @@
+<script>
+  (() => {
+    const data = { purchases: [], suppliers: [], operators: [], users: [], audit: [], selectedPurchases: new Set() };
+    const field = (name,label,value='',type='text',col=6,extra='') => `<div class="col-md-${col}"><label class="form-label">${UI.esc(label)}</label><input name="${UI.esc(name)}" type="${type}" value="${UI.esc(value)}" class="form-control" ${extra}></div>`;
+    const selectField = (name,label,items,selected='',col=6,extra='') => `<div class="col-md-${col}"><label class="form-label">${UI.esc(label)}</label><select name="${UI.esc(name)}" class="form-select" ${extra}>${UI.options(items,selected)}</select></div>`;
+    const actionButtons = (row, edit = true, remove = true) => `<div class="d-flex gap-1">${edit ? UI.actionButton('edit','Editar','edit',row.ID) : ''}${remove ? UI.actionButton('block','Inativar','delete',row.ID,'text-danger') : ''}</div>`;
+
+    function updatePurchaseSelection() {
+      const button = document.getElementById('receiveSelectedPurchases');
+      button.disabled = data.selectedPurchases.size === 0;
+      button.innerHTML = `<span class="material-symbols-rounded">move_to_inbox</span>Receber selecionados${data.selectedPurchases.size ? ` (${data.selectedPurchases.size})` : ''}`;
+    }
+    function renderPurchases() {
+      const query = document.getElementById('purchaseSearch').value.trim().toLowerCase();
+      const filter = document.getElementById('purchaseStatusFilter').value;
+      const rows = data.purchases.filter(row => {
+        const matchesQuery = !query || `${row.CODIGO} ${row.INSUMO_NOME} ${row.FORNECEDOR_NOME}`.toLowerCase().includes(query);
+        const matchesStatus = filter === 'all' ||
+          (filter === 'active' && ['Pendente','Comprado'].includes(row.STATUS_RESUMO)) ||
+          row.STATUS_RESUMO === filter;
+        return matchesQuery && matchesStatus;
+      });
+      document.getElementById('purchasesTable').innerHTML = rows.length ? `<div class="purchase-list">${rows.map(row => {
+        const canReceive = !['Recebido','Cancelado'].includes(row.STATUS_RESUMO) && App.canWrite('compras');
+        return `<article class="purchase-card ${row.STATUS_RESUMO === 'Recebido' ? 'received' : ''}">
+          <input class="form-check-input purchase-select" type="checkbox" data-purchase-id="${UI.esc(row.ID)}" ${data.selectedPurchases.has(String(row.ID)) ? 'checked' : ''} ${canReceive ? '' : 'disabled'} aria-label="Selecionar ${UI.esc(row.INSUMO_NOME)}">
+          <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap"><h3>${UI.esc(row.INSUMO_NOME)}</h3>${UI.badge(row.STATUS_RESUMO)}</div>
+            <div class="purchase-meta">
+              <span>Saldo: <strong>${UI.number(row.ESTOQUE_ATUAL)} ${UI.esc(row.UNIDADE)}</strong></span>
+              <span>Mínimo: <strong>${UI.number(row.ESTOQUE_MINIMO)}</strong></span>
+              <span>Comprar: <strong>${UI.number(row.QUANTIDADE_COMPRAR)} ${UI.esc(row.UNIDADE)}</strong></span>
+              ${row.FORNECEDOR_NOME ? `<span>Fornecedor: <strong>${UI.esc(row.FORNECEDOR_NOME)}</strong></span>` : ''}
+            </div>
+          </div>
+          <div class="purchase-actions">
+            ${App.canWrite('compras') ? `<button class="btn btn-sm btn-light" data-purchase-action="edit" data-purchase-id="${UI.esc(row.ID)}"><span class="material-symbols-rounded">edit</span>Ajustar</button>` : ''}
+            ${canReceive && row.STATUS_RESUMO !== 'Comprado' ? `<button class="btn btn-sm btn-light" data-purchase-action="bought" data-purchase-id="${UI.esc(row.ID)}"><span class="material-symbols-rounded">shopping_bag</span>Comprado</button>` : ''}
+            ${canReceive ? `<button class="btn btn-sm btn-primary" data-purchase-action="receive" data-purchase-id="${UI.esc(row.ID)}"><span class="material-symbols-rounded">move_to_inbox</span>Receber</button>` : ''}
+          </div>
+        </article>`;
+      }).join('')}</div>` : UI.empty('Nenhum item encontrado nesta situação.');
+      document.querySelectorAll('.purchase-select').forEach(input => {
+        input.onchange = () => {
+          input.checked ? data.selectedPurchases.add(input.dataset.purchaseId) : data.selectedPurchases.delete(input.dataset.purchaseId);
+          updatePurchaseSelection();
+        };
+      });
+      document.querySelectorAll('[data-purchase-action]').forEach(button => {
+        button.onclick = async () => {
+          const row = data.purchases.find(item => String(item.ID) === String(button.dataset.purchaseId));
+          if (button.dataset.purchaseAction === 'edit') purchaseForm(row);
+          if (button.dataset.purchaseAction === 'receive') receivePurchases([row]);
+          if (button.dataset.purchaseAction === 'bought') {
+            await App.server('compras.save', { ID: row.ID, STATUS: 'Comprado', QUANTIDADE_APROVADA: row.QUANTIDADE_COMPRAR });
+            UI.toast('Item marcado como comprado.');
+            await loadPurchases();
+          }
+        };
+      });
+      updatePurchaseSelection();
+    }
+
+    async function loadPurchases() {
+      document.getElementById('refreshPurchasesButton').classList.toggle('d-none', !App.canWrite('compras'));
+      document.getElementById('purchasesTable').innerHTML = UI.skeleton();
+      if (App.canWrite('compras')) await App.server('compras.refresh');
+      data.purchases = await App.server('compras.list');
+      data.selectedPurchases.clear();
+      document.getElementById('purchaseMetricPending').textContent = UI.number(data.purchases.filter(row => row.STATUS_RESUMO === 'Pendente').length);
+      document.getElementById('purchaseMetricBought').textContent = UI.number(data.purchases.filter(row => row.STATUS_RESUMO === 'Comprado').length);
+      document.getElementById('purchaseMetricReceived').textContent = UI.number(data.purchases.filter(row => row.STATUS_RESUMO === 'Recebido').length);
+      renderPurchases();
+    }
+    function purchaseForm(row) {
+      UI.openModal({
+        title:`Editar ${row.CODIGO}`,eyebrow:'Lista de compras',formId:'modalForm',submitText:'Salvar item',
+        body:`<form id="modalForm" class="row g-3"><input type="hidden" name="ID" value="${UI.esc(row.ID)}">
+          <div class="col-12"><div class="alert alert-light"><strong>${UI.esc(row.INSUMO_NOME)}</strong><br>Estoque atual: ${UI.number(row.ESTOQUE_ATUAL)} · mínimo: ${UI.number(row.ESTOQUE_MINIMO)} · sugestão: ${UI.number(row.QUANTIDADE_SUGERIDA)}</div></div>
+          ${field('QUANTIDADE_APROVADA','Quantidade a comprar',row.QUANTIDADE_APROVADA || row.QUANTIDADE_SUGERIDA,'number',6,'min="0" step="0.0001" required')}
+          ${selectField('FORNECEDOR_ID','Fornecedor',App.state.lookups.suppliers,row.FORNECEDOR_ID,6)}
+          ${selectField('STATUS','Situação',['Solicitado','Comprado','Cancelado'],row.STATUS,6,'required')}
+          <div class="col-12"><label class="form-label">Observações</label><textarea name="OBSERVACOES" class="form-control" rows="3">${UI.esc(row.OBSERVACOES||'')}</textarea></div>
+        </form>`,
+        onSubmit:async form=>{ await App.server('compras.save',form); UI.toast('Solicitação atualizada.'); await loadPurchases(); }
+      });
+    }
+    function receivePurchases(rows) {
+      rows = rows.filter(row => row && !['Recebido','Cancelado'].includes(row.STATUS_RESUMO));
+      if (!rows.length) {
+        UI.toast('Selecione itens pendentes ou comprados.', 'warning');
+        return;
+      }
+      const today = UI.today();
+      UI.openModal({
+        title: rows.length > 1 ? `Receber ${rows.length} itens` : `Receber ${rows[0].INSUMO_NOME}`,
+        eyebrow: 'Entrada direta no estoque',
+        size: rows.length > 2 ? 'xl' : 'lg',
+        formId: 'modalForm',
+        submitText: 'Confirmar recebimento',
+        body: `<form id="modalForm" class="row g-3">
+          ${field('DATA_ENTRADA','Data de chegada',today,'date',6,'required')}
+          ${selectField('OPERADOR_ID','Responsável',App.state.lookups.operators,App.state.user.id,6)}
+          <div class="col-12"><div class="operation-list">${rows.map((row,index) => `
+            <div class="card-surface p-3">
+              <input type="hidden" name="ITEM_${index}_ID" value="${UI.esc(row.ID)}">
+              <strong class="d-block mb-2">${UI.esc(row.INSUMO_NOME)}</strong>
+              <div class="row g-2">
+                ${field(`ITEM_${index}_QTY`,'Quantidade recebida',row.QUANTIDADE_COMPRAR,'number',6,'min="0.0001" step="0.0001" required')}
+                ${field(`ITEM_${index}_LOTE`,'Lote (opcional)','','text',6)}
+              </div>
+            </div>
+          `).join('')}</div></div>
+        </form>`,
+        onSubmit: async form => {
+          const payload = {
+            DATA_ENTRADA: form.DATA_ENTRADA,
+            OPERADOR_ID: form.OPERADOR_ID,
+            ITENS: rows.map((row,index) => ({
+              ID: form[`ITEM_${index}_ID`],
+              QUANTIDADE_RECEBIDA: form[`ITEM_${index}_QTY`],
+              LOTE: form[`ITEM_${index}_LOTE`]
+            }))
+          };
+          const result = await App.server('compras.receive', payload);
+          UI.toast(`${result.received} item(ns) recebido(s) e incluído(s) no estoque.`);
+          await loadPurchases();
+        }
+      });
+    }
+    async function loadSuppliers() {
+      document.getElementById('newSupplierButton').classList.toggle('d-none',!App.canWrite('fornecedores'));
+      document.getElementById('suppliersTable').innerHTML=UI.skeleton();
+      data.suppliers=await App.server('fornecedores.list');
+      UI.renderTable('suppliersTable',data.suppliers,[
+        {key:'CODIGO',label:'Código'},{key:'NOME_FANTASIA',label:'Fornecedor',render:(value,row)=>`<strong>${UI.esc(value||row.RAZAO_SOCIAL)}</strong>`},{key:'CNPJ',label:'CNPJ'},{key:'CONTATO',label:'Contato'},{key:'TELEFONE',label:'Telefone'},{key:'CIDADE',label:'Cidade'},{key:'PRAZO_MEDIO_DIAS',label:'Prazo',render:value=>`${UI.number(value)} dias`},{key:'AVALIACAO',label:'Avaliação',render:value=>`${UI.number(value)} ★`},{key:'STATUS',label:'Status',render:UI.badge},{key:'_actions',label:'Ações',render:(_,row)=>App.canWrite('fornecedores')?actionButtons(row):''}
+      ],{exportName:'fornecedores',onAction:(action,id,row)=>action==='edit'?supplierForm(row):deactivateSupplier(id)});
+    }
+    function supplierForm(row={}) {
+      UI.openModal({
+        title:row.ID?'Editar fornecedor':'Novo fornecedor',eyebrow:'Cadastro',formId:'modalForm',submitText:'Salvar fornecedor',
+        body:`<form id="modalForm" class="row g-3"><input type="hidden" name="ID" value="${UI.esc(row.ID||'')}">${field('RAZAO_SOCIAL','Razão social',row.RAZAO_SOCIAL,'text',6,'required')}${field('NOME_FANTASIA','Nome fantasia',row.NOME_FANTASIA,'text',6)}${field('CNPJ','CNPJ',row.CNPJ,'text',4)}${field('INSCRICAO_ESTADUAL','Inscrição estadual',row.INSCRICAO_ESTADUAL,'text',4)}${field('CONTATO','Contato',row.CONTATO,'text',4)}${field('TELEFONE','Telefone',row.TELEFONE,'tel',4)}${field('WHATSAPP','WhatsApp',row.WHATSAPP,'tel',4)}${field('EMAIL','Email',row.EMAIL,'email',4)}${field('ENDERECO','Endereço',row.ENDERECO,'text',6)}${field('CIDADE','Cidade',row.CIDADE,'text',3)}${field('ESTADO','UF',row.ESTADO,'text',3,'maxlength="2"')}${field('CEP','CEP',row.CEP,'text',4)}${field('PRAZO_MEDIO_DIAS','Prazo médio (dias)',row.PRAZO_MEDIO_DIAS,'number',4,'min="0"')}${field('AVALIACAO','Avaliação (0–5)',row.AVALIACAO,'number',4,'min="0" max="5" step="0.1"')}${selectField('STATUS','Status',['Ativo','Inativo'],row.STATUS||'Ativo',6)}<div class="col-12"><label class="form-label">Produtos fornecidos</label><textarea name="PRODUTOS_FORNECIDOS" class="form-control" rows="2">${UI.esc(row.PRODUTOS_FORNECIDOS||'')}</textarea></div></form>`,
+        onSubmit:async form=>{await App.server('fornecedores.save',form);UI.toast('Fornecedor salvo.');App.state.lookups=await App.server('lookups.get');await loadSuppliers();}
+      });
+    }
+    async function deactivateSupplier(id){
+      if(!await UI.confirm('Inativar fornecedor','O cadastro continuará disponível no histórico.','Inativar',true))return;
+      try{await App.server('fornecedores.delete',{id});UI.toast('Fornecedor inativado.','warning');await loadSuppliers();}catch(error){UI.toast(error.message,'danger');}
+    }
+
+    async function loadOperators() {
+      document.getElementById('newOperatorButton').classList.toggle('d-none',!App.canWrite('operadores'));
+      document.getElementById('operatorsTable').innerHTML=UI.skeleton();
+      data.operators=await App.server('operadores.list');
+      UI.renderTable('operatorsTable',data.operators,[
+        {key:'NOME',label:'Nome',render:value=>`<strong>${UI.esc(value)}</strong>`},{key:'CARGO',label:'Cargo'},{key:'FUNCAO',label:'Função'},{key:'TELEFONE',label:'Telefone'},{key:'EMAIL',label:'Email'},{key:'PERMISSAO',label:'Permissão',render:UI.badge},{key:'STATUS',label:'Status',render:UI.badge},{key:'ULTIMO_ACESSO',label:'Último acesso',render:UI.date},{key:'_actions',label:'Ações',render:(_,row)=>App.canWrite('operadores')?actionButtons(row):''}
+      ],{exportName:'operadores',onAction:(action,id,row)=>action==='edit'?operatorForm(row):deactivateOperator(id)});
+      if(App.state.user.role==='Administrador'){
+        document.getElementById('usersTable').innerHTML=UI.skeleton();
+        data.users=await App.server('usuarios.list');
+        UI.renderTable('usersTable',data.users,[
+          {key:'name',label:'Nome',render:value=>`<strong>${UI.esc(value)}</strong>`},{key:'email',label:'Email'},{key:'role',label:'Perfil',render:UI.badge},{key:'status',label:'Status',render:UI.badge},{key:'lastAccess',label:'Último acesso',render:UI.date},{key:'_actions',label:'Ações',render:(_,row)=>UI.actionButton('edit','Editar','edit',row.id)}
+        ],{exportName:'usuarios',onAction:(action,id,row)=>userForm(row)});
+      }
+    }
+    function operatorForm(row={}) {
+      UI.openModal({title:row.ID?'Editar operador':'Novo operador',eyebrow:'Equipe',formId:'modalForm',submitText:'Salvar operador',body:`<form id="modalForm" class="row g-3"><input type="hidden" name="ID" value="${UI.esc(row.ID||'')}">${field('NOME','Nome',row.NOME,'text',6,'required')}${field('TELEFONE','Telefone',row.TELEFONE,'tel',3)}${field('EMAIL','Email',row.EMAIL,'email',3)}${field('CARGO','Cargo',row.CARGO,'text',4,'required')}${field('FUNCAO','Função',row.FUNCAO,'text',4)}${selectField('PERMISSAO','Permissão',['Operador','Supervisor','Consulta'],row.PERMISSAO||'Operador',4)}${field('PIN','Novo PIN', '', 'password',6,'pattern="[0-9]{4,8}" placeholder="4 a 8 números"')}<div class="col-md-6"><label class="form-label">Foto</label><input id="operatorPhotoFile" type="file" accept="image/jpeg,image/png,image/webp" class="form-control"></div>${selectField('STATUS','Status',['Ativo','Inativo'],row.STATUS||'Ativo',6)}</form>`,onSubmit:async form=>{const photo=await UI.uploadImage(document.getElementById('operatorPhotoFile'));if(photo)form.FOTO=photo;await App.server('operadores.save',form);UI.toast('Operador salvo.');App.state.lookups=await App.server('lookups.get');await loadOperators();}});
+    }
+    async function deactivateOperator(id){if(!await UI.confirm('Inativar operador','O histórico será preservado.','Inativar',true))return;await App.server('operadores.delete',{id});UI.toast('Operador inativado.','warning');await loadOperators();}
+    function userForm(row={}) {
+      UI.openModal({title:row.id?'Editar usuário':'Novo usuário',eyebrow:'Acesso ao sistema',formId:'modalForm',submitText:'Salvar usuário',body:`<form id="modalForm" class="row g-3"><input type="hidden" name="ID" value="${UI.esc(row.id||'')}">${field('NOME','Nome',row.name,'text',6,'required')}${field('EMAIL','Email',row.email,'email',6,'required')}${selectField('PERFIL','Perfil',App.state.lookups.roles,row.role||'Consulta',6,'required')}${selectField('STATUS','Status',['Ativo','Inativo'],row.status||'Ativo',6)}${field('SENHA',row.id?'Nova senha (opcional)':'Senha inicial','', 'password',12,row.id?'':'required minlength="8"')}</form>`,onSubmit:async form=>{await App.server('usuarios.save',form);UI.toast('Usuário salvo.');await loadOperators();}});
+    }
+
+    async function loadAudit(){
+      document.getElementById('auditTable').innerHTML=UI.skeleton();
+      data.audit=await App.server('auditoria.list',{limit:500});
+      UI.renderTable('auditTable',data.audit,[
+        {key:'DATA_HORA',label:'Data',render:UI.date},{key:'ACAO',label:'Ação',render:UI.badge},{key:'USUARIO_NOME',label:'Usuário',render:value=>`<strong>${UI.esc(value)}</strong>`},{key:'TELA',label:'Tela'},{key:'REGISTRO_TIPO',label:'Entidade'},{key:'REGISTRO_ID',label:'Registro'},{key:'OBSERVACAO',label:'Observação'}
+      ],{exportName:'auditoria'});
+    }
+    async function generateReport(form,button){
+      UI.loading(button,true,'Gerando...');
+      try{const result=await App.server('relatorios.generate',form);UI.openModal({title:'Relatório pronto',eyebrow:result.format,body:`<div class="text-center py-4"><div class="brand-mark mx-auto mb-3"><span class="material-symbols-rounded">task_alt</span></div><h4>${UI.esc(result.name)}</h4><p class="text-secondary">${UI.number(result.rows)} registro(s) exportados.</p><a class="btn btn-primary" href="${UI.esc(result.url)}" target="_blank" rel="noopener"><span class="material-symbols-rounded">open_in_new</span>Abrir arquivo</a></div>`});}catch(error){UI.toast(error.message,'danger');}finally{UI.loading(button,false);}
+    }
+    async function viewClosing(){
+      const date=document.getElementById('closingDate').value;
+      const closing=await App.server('fechamento.get',{date});
+      document.getElementById('closingSummary').innerHTML=`<div class="row g-2">${[['Produção',UI.number(closing.productionQuantity)],['Consumo',UI.number(closing.consumptionQuantity)],['Perdas',UI.number(closing.lossQuantity)],['Custo perdas',UI.currency(closing.lossCost)],['Diferença',UI.number(closing.difference)],['Pendências',UI.number(closing.pendingCounts)]].map(([label,value])=>`<div class="col-6"><div class="card-surface p-3"><small class="text-secondary d-block">${label}</small><strong>${value}</strong></div></div>`).join('')}</div>`;
+    }
+    async function closingPdf(){
+      const result=await App.server('fechamento.pdf',{date:document.getElementById('closingDate').value});
+      UI.openModal({title:'Fechamento pronto',eyebrow:'PDF',body:`<div class="text-center py-4"><p>O relatório de fechamento foi gerado.</p><a class="btn btn-primary" href="${UI.esc(result.url)}" target="_blank">Abrir PDF</a></div>`});
+    }
+    async function saveClosing(){
+      const payload={date:document.getElementById('closingDate').value,responsibleId:document.getElementById('closingResponsible').value,supervisorId:document.getElementById('closingSupervisor').value,observations:document.getElementById('closingObservations').value};
+      try{const saved=await App.server('fechamento.save',payload);UI.toast(`Dia fechado: ${saved.STATUS}.`);}
+      catch(error){
+        if(/pendentes/.test(error.message) && await UI.confirm('Fechar com pendências',error.message,'Fechar assim mesmo')){payload.confirmPending=true;const saved=await App.server('fechamento.save',payload);UI.toast(`Dia fechado: ${saved.STATUS}.`,'warning');}
+        else throw error;
+      }
+    }
+
+    function bind(){
+      document.getElementById('refreshPurchasesButton').onclick=async()=>{const result=await App.server('compras.refresh');UI.toast(`${result.created} solicitação(ões) criada(s).`);await loadPurchases();};
+      document.getElementById('purchaseSearch').oninput=UI.debounce(renderPurchases,120);
+      document.getElementById('purchaseStatusFilter').onchange=renderPurchases;
+      document.getElementById('receiveSelectedPurchases').onclick=()=>receivePurchases(data.purchases.filter(row=>data.selectedPurchases.has(String(row.ID))));
+      document.getElementById('newSupplierButton').onclick=()=>supplierForm();
+      document.getElementById('newOperatorButton').onclick=()=>operatorForm();
+      document.getElementById('newUserButton').onclick=()=>userForm();
+      document.getElementById('refreshAuditButton').onclick=loadAudit;
+      document.getElementById('reportForm').onsubmit=event=>{event.preventDefault();generateReport(UI.formObject(event.currentTarget),event.currentTarget.querySelector('button'));};
+      const today=UI.today();document.getElementById('closingDate').value=today;
+      document.getElementById('closingResponsible').innerHTML=UI.options(App.state.lookups?.operators||[]);
+      document.getElementById('closingSupervisor').innerHTML=UI.options(App.state.lookups?.operators||[]);
+      document.getElementById('viewClosingButton').onclick=()=>viewClosing().catch(error=>UI.toast(error.message,'danger'));
+      document.getElementById('saveClosingButton').onclick=()=>saveClosing().catch(error=>UI.toast(error.message,'danger'));
+      document.getElementById('closingPdfButton').onclick=()=>closingPdf().catch(error=>UI.toast(error.message,'danger'));
+    }
+    bind();
+    window.ModuleLoaders.compras=loadPurchases;
+    window.ModuleLoaders.fornecedores=loadSuppliers;
+    window.ModuleLoaders.operadores=loadOperators;
+    window.ModuleLoaders.auditoria=loadAudit;
+    window.ModuleLoaders.relatorios=async()=>{
+      document.getElementById('closingResponsible').innerHTML=UI.options(App.state.lookups.operators);
+      document.getElementById('closingSupervisor').innerHTML=UI.options(App.state.lookups.operators);
+      document.getElementById('saveClosingButton').classList.toggle('d-none',!App.canWrite('relatorios'));
+    };
+  })();
+</script>

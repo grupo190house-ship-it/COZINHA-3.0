@@ -1,0 +1,25 @@
+<section id="view-compras" class="page-view">
+  <div class="page-head">
+    <div><span class="eyebrow">Suprimentos</span><h1>Lista de compras</h1><p>O sistema inclui automaticamente os insumos que chegaram ao estoque mínimo.</p></div>
+    <div class="page-actions">
+      <button id="refreshPurchasesButton" class="btn btn-light"><span class="material-symbols-rounded">refresh</span>Atualizar lista</button>
+      <button id="receiveSelectedPurchases" class="btn btn-primary" disabled><span class="material-symbols-rounded">move_to_inbox</span>Receber selecionados</button>
+    </div>
+  </div>
+  <div class="metric-grid compact-metrics" style="grid-template-columns:repeat(3,minmax(160px,1fr))">
+    <article class="metric-card card-surface" style="--metric-color:#e98b23"><div class="metric-icon"><span class="material-symbols-rounded">pending_actions</span></div><span class="metric-label">Pendentes</span><strong id="purchaseMetricPending" class="metric-value">—</strong></article>
+    <article class="metric-card card-surface" style="--metric-color:#3182f6"><div class="metric-icon"><span class="material-symbols-rounded">shopping_bag</span></div><span class="metric-label">Comprados</span><strong id="purchaseMetricBought" class="metric-value">—</strong></article>
+    <article class="metric-card card-surface" style="--metric-color:#16a36a"><div class="metric-icon"><span class="material-symbols-rounded">inventory</span></div><span class="metric-label">Recebidos</span><strong id="purchaseMetricReceived" class="metric-value">—</strong></article>
+  </div>
+  <div class="alert alert-light border mb-3 d-flex gap-3 align-items-start">
+    <span class="material-symbols-rounded text-primary">auto_awesome</span>
+    <div><strong>Lista automática</strong><div class="text-secondary">Você pode ajustar a quantidade, marcar como comprado e receber um ou vários itens diretamente no estoque.</div></div>
+  </div>
+  <div class="card-surface">
+    <div class="toolbar">
+      <div class="input-icon flex-grow-1"><span class="material-symbols-rounded">search</span><input id="purchaseSearch" class="form-control w-100" placeholder="Pesquisar insumo..."></div>
+      <select id="purchaseStatusFilter" class="form-select"><option value="active">Pendentes e comprados</option><option value="Pendente">Pendentes</option><option value="Comprado">Comprados</option><option value="Recebido">Recebidos</option><option value="all">Todos</option></select>
+    </div>
+    <div id="purchasesTable"></div>
+  </div>
+</section>

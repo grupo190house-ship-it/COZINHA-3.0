@@ -1,0 +1,60 @@
+<section id="loginScreen" class="login-screen d-none">
+  <div class="login-panel">
+    <div class="login-form-wrap">
+      <div class="login-brand-row d-flex align-items-center gap-3">
+        <div class="brand-mark"><span class="material-symbols-rounded">skillet</span></div>
+        <div><strong id="loginCompany">Cozinha Industrial</strong><small class="d-block text-secondary">Estoque e produção sob controle</small></div>
+      </div>
+
+      <div class="login-mobile-intro">
+        <span class="login-mobile-pill"><span class="material-symbols-rounded">verified</span> Operação organizada</span>
+        <h2>Da entrada ao produto pronto.</h2>
+        <p>Acompanhe estoque, produção e compras pelo celular.</p>
+        <div class="login-mobile-features"><span>Estoque</span><span>Produção</span><span>Compras</span></div>
+      </div>
+
+      <div id="loginView" class="login-access-card">
+        <h1>Acesse sua operação.</h1>
+        <p class="text-secondary mb-4">Use seu email e senha para continuar.</p>
+        <form id="loginForm">
+          <div class="mb-3">
+            <label class="form-label" for="loginEmail">Email</label>
+            <div class="input-icon"><span class="material-symbols-rounded">mail</span><input id="loginEmail" name="email" type="email" class="form-control" autocomplete="username" required placeholder="voce@empresa.com"></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="loginPassword">Senha</label>
+            <div class="input-icon password-field"><span class="material-symbols-rounded">lock</span><input id="loginPassword" name="password" type="password" class="form-control" autocomplete="current-password" required placeholder="Sua senha"><button id="toggleLoginPassword" type="button" class="password-toggle" aria-label="Mostrar senha"><span class="material-symbols-rounded">visibility</span></button></div>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <label class="form-check"><input name="remember" class="form-check-input" type="checkbox"><span class="form-check-label">Lembrar acesso</span></label>
+            <button id="forgotButton" type="button" class="btn btn-link p-0 text-decoration-none">Esqueci minha senha</button>
+          </div>
+          <button class="btn btn-primary w-100" type="submit"><span class="material-symbols-rounded">login</span><span>Entrar</span></button>
+        </form>
+      </div>
+
+      <div id="setupView" class="login-access-card d-none">
+        <h1>Vamos preparar seu ERP.</h1>
+        <p class="text-secondary mb-4">Esta etapa cria o banco e o primeiro administrador.</p>
+        <form id="setupForm" class="row g-3">
+          <div class="col-12"><label class="form-label">Nome da empresa</label><input name="companyName" class="form-control" required></div>
+          <div class="col-12"><label class="form-label">Nome do administrador</label><input name="adminName" class="form-control" required></div>
+          <div class="col-12"><label class="form-label">Email do administrador</label><input name="adminEmail" type="email" class="form-control" required></div>
+          <div class="col-12"><label class="form-label">Senha inicial</label><input name="adminPassword" type="password" minlength="8" class="form-control" required><small class="text-secondary">Use ao menos 8 caracteres, letras e números.</small></div>
+          <div class="col-12"><button class="btn btn-primary w-100" type="submit"><span class="material-symbols-rounded">rocket_launch</span><span>Criar ambiente</span></button></div>
+        </form>
+      </div>
+      <p class="login-version mt-4 mb-0 text-secondary small">CozinhaFlow ERP · v<span id="loginVersion">1.2.0</span></p>
+    </div>
+  </div>
+  <aside class="login-art">
+    <div class="login-art-card">
+      <span class="eyebrow text-white-50">OPERAÇÃO SOB CONTROLE</span>
+      <h2>Da entrada do insumo ao produto pronto.</h2>
+      <p class="lead text-white-50">Estoque, produção, compras e inventário em uma experiência única.</p>
+      <div class="login-feature"><span class="material-symbols-rounded">inventory_2</span><span>Entradas, lotes e PEPS automáticos</span></div>
+      <div class="login-feature"><span class="material-symbols-rounded">monitoring</span><span>Indicadores gerenciais em tempo real</span></div>
+      <div class="login-feature"><span class="material-symbols-rounded">verified_user</span><span>Permissões e auditoria de cada ação</span></div>
+    </div>
+  </aside>
+</section>

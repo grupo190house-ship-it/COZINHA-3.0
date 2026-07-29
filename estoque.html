@@ -1,0 +1,17 @@
+<section id="view-estoque" class="page-view">
+  <div class="page-head"><div><span class="eyebrow">Controle por lote</span><h1>Estoque</h1><p>Entradas, saídas, saldos, lotes e histórico PEPS.</p></div><div class="page-actions"><button id="stockExitButton" class="btn btn-light"><span class="material-symbols-rounded">outbox</span>Registrar saída</button><button id="stockEntryButton" class="btn btn-primary"><span class="material-symbols-rounded">move_to_inbox</span>Entrada de insumo</button></div></div>
+  <div class="metric-grid compact-metrics" style="grid-template-columns:repeat(3,minmax(160px,1fr))">
+    <article class="metric-card card-surface"><div class="metric-icon"><span class="material-symbols-rounded">category</span></div><span class="metric-label">Itens cadastrados</span><strong id="stockMetricItems" class="metric-value">—</strong></article>
+    <article class="metric-card card-surface" style="--metric-color:#3182f6"><div class="metric-icon"><span class="material-symbols-rounded">inventory_2</span></div><span class="metric-label">Itens com saldo</span><strong id="stockMetricStocked" class="metric-value">—</strong></article>
+    <article class="metric-card card-surface" style="--metric-color:#e34d59"><div class="metric-icon"><span class="material-symbols-rounded">production_quantity_limits</span></div><span class="metric-label">Abaixo do mínimo</span><strong id="stockMetricLow" class="metric-value">—</strong></article>
+  </div>
+  <div class="card-surface">
+    <div class="toolbar">
+      <select id="stockType" class="form-select"><option value="TODOS">Todos os estoques</option><option value="INSUMO">Somente insumos</option><option value="PRODUTO">Somente produtos produzidos</option></select>
+      <div class="input-icon flex-grow-1"><span class="material-symbols-rounded">search</span><input id="stockSearch" class="form-control w-100" placeholder="Pesquisar item..."></div>
+      <select id="stockStatusFilter" class="form-select"><option value="all">Todos</option><option value="low">Abaixo do mínimo</option><option value="stocked">Com saldo</option><option value="empty">Sem saldo</option></select>
+      <button id="stockMovementsButton" class="btn btn-light ms-auto"><span class="material-symbols-rounded">history</span>Movimentações</button>
+    </div>
+    <div id="stockTable"></div>
+  </div>
+</section>
