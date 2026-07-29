@@ -1,0 +1,115 @@
+<script>
+(() => {
+  'use strict';
+
+  const originalRun = window.google?.script?.run;
+  if (!originalRun) throw new Error('A camada Firebase não foi carregada antes do Google Drive.');
+
+  const endpoint = () => {
+    const value = String(App?.state?.config?.DRIVE_UPLOAD_URL || localStorage.getItem('cozinhaflow_drive_upload_url') || '').trim();
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(value)) {
+      const error = new Error('Configure a URL do Google Drive em Configurações → Upload de fotos.');
+      error.code = 'DRIVE_NOT_CONFIGURED';
+      throw error;
+    }
+    return value;
+  };
+
+  function uploadToDrive(payload) {
+    return new Promise(async (resolve, reject) => {
+      let frame;
+      let form;
+      let timer;
+      let listener;
+      try {
+        const url = endpoint();
+        const currentUser = window.FirebaseBridge?.auth?.currentUser;
+        if (!currentUser) throw new Error('Faça login novamente antes de enviar a foto.');
+        const idToken = await currentUser.getIdToken(true);
+        const requestId = `drive-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const frameName = `driveFrame-${requestId}`;
+
+        frame = document.createElement('iframe');
+        frame.name = frameName;
+        frame.hidden = true;
+        frame.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(frame);
+
+        form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.target = frameName;
+        form.hidden = true;
+
+        const fields = {
+          action: 'driveUpload',
+          requestId,
+          idToken,
+          name: payload?.name || 'foto.jpg',
+          mimeType: payload?.mimeType || 'image/jpeg',
+          base64: payload?.base64 || ''
+        };
+        Object.entries(fields).forEach(([name, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.value = String(value);
+          form.appendChild(input);
+        });
+        document.body.appendChild(form);
+
+        const cleanup = () => {
+          clearTimeout(timer);
+          window.removeEventListener('message', listener);
+          form?.remove();
+          frame?.remove();
+        };
+
+        listener = event => {
+          if (event.source !== frame.contentWindow) return;
+          const message = event.data;
+          if (!message || message.type !== 'cozinhaflow-drive-upload' || message.requestId !== requestId) return;
+          cleanup();
+          if (message.ok) resolve(message.data);
+          else reject(Object.assign(new Error(message.error || 'Falha no upload para o Google Drive.'), { code: 'DRIVE_UPLOAD_ERROR' }));
+        };
+        window.addEventListener('message', listener);
+        timer = setTimeout(() => {
+          cleanup();
+          reject(Object.assign(new Error('O Google Drive demorou para responder. Tente novamente.'), { code: 'DRIVE_UPLOAD_TIMEOUT' }));
+        }, 120000);
+
+        form.submit();
+      } catch (error) {
+        clearTimeout(timer);
+        window.removeEventListener('message', listener);
+        form?.remove();
+        frame?.remove();
+        reject(error);
+      }
+    });
+  }
+
+  const relay = (success, failure) => new Proxy({}, {
+    get(_, property) {
+      if (property === 'withSuccessHandler') return handler => relay(handler, failure);
+      if (property === 'withFailureHandler') return handler => relay(success, handler);
+      return (...args) => {
+        if (property === 'apiRequest' && args[0] === 'media.upload') {
+          uploadToDrive(args[1] || {})
+            .then(data => success?.({ ok: true, data }))
+            .catch(error => success?.({ ok: false, error: error.message || String(error), code: error.code || 'DRIVE_UPLOAD_ERROR' }));
+          return;
+        }
+        const delegated = originalRun
+          .withSuccessHandler(response => success?.(response))
+          .withFailureHandler(error => failure?.(error));
+        delegated[property](...args);
+      };
+    }
+  });
+
+  window.google.script.run = relay();
+  window.DriveBridge = { upload: uploadToDrive, endpoint };
+})();
+</script>
