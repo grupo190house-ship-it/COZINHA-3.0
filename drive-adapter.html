@@ -5,8 +5,13 @@
   const originalRun = window.google?.script?.run;
   if (!originalRun) throw new Error('A camada Firebase não foi carregada antes do Google Drive.');
 
+  const DEFAULT_ENDPOINT = 'https://script.google.com/macros/s/AKfycbybwjaZh99wXGPUcNSqQ539Rwe0dOcBAHDRVcXYwqBTSNyqxIzmmPHnF85_o5CIJ3eF/exec';
+  if (!localStorage.getItem('cozinhaflow_drive_upload_url')) {
+    localStorage.setItem('cozinhaflow_drive_upload_url', DEFAULT_ENDPOINT);
+  }
+
   const endpoint = () => {
-    const value = String(App?.state?.config?.DRIVE_UPLOAD_URL || localStorage.getItem('cozinhaflow_drive_upload_url') || '').trim();
+    const value = String(App?.state?.config?.DRIVE_UPLOAD_URL || localStorage.getItem('cozinhaflow_drive_upload_url') || DEFAULT_ENDPOINT).trim();
     if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(value)) {
       const error = new Error('Configure a URL do Google Drive em Configurações → Upload de fotos.');
       error.code = 'DRIVE_NOT_CONFIGURED';
@@ -110,6 +115,6 @@
   });
 
   window.google.script.run = relay();
-  window.DriveBridge = { upload: uploadToDrive, endpoint };
+  window.DriveBridge = { upload: uploadToDrive, endpoint, defaultEndpoint: DEFAULT_ENDPOINT };
 })();
 </script>
