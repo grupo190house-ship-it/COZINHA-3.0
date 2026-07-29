@@ -1,0 +1,26 @@
+{
+  "rules": {
+    "cozinhaflow": {
+      "v1": {
+        "meta": {
+          ".read": true,
+          ".write": "auth != null && (!data.exists() || root.child('cozinhaflow/v1/users').child(auth.uid).child('PERFIL').val() === 'Administrador')"
+        },
+        "config": {
+          ".read": true,
+          ".write": "auth != null && root.child('cozinhaflow/v1/users').child(auth.uid).child('PERFIL').val() === 'Administrador'"
+        },
+        "users": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": "auth != null && (auth.uid === $uid || root.child('cozinhaflow/v1/users').child(auth.uid).child('PERFIL').val() === 'Administrador')"
+          }
+        },
+        "$collection": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('cozinhaflow/v1/users').child(auth.uid).child('STATUS').val() === 'Ativo'"
+        }
+      }
+    }
+  }
+}
