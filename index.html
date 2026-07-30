@@ -27,7 +27,7 @@
   <script>
     (() => {
       'use strict';
-      const ASSET_VERSION = '20260730-no-zoom-v11';
+      const ASSET_VERSION = '20260730-menu-scroll-v12';
       if (!localStorage.getItem('cozinhaflow_theme')) localStorage.setItem('cozinhaflow_theme', 'light');
 
       const stopZoom = event => event.preventDefault();
@@ -62,7 +62,7 @@
         document.body.innerHTML = `<main style="min-height:100vh;display:grid;place-items:center;padding:24px;font-family:Inter,system-ui,sans-serif;background:linear-gradient(145deg,#0c66e4,#0052cc 60%,#172b4d)"><section style="width:min(560px,100%);padding:32px;border-radius:12px;background:#fff;box-shadow:0 18px 55px rgba(9,30,66,.35);text-align:center"><span class="material-symbols-rounded" style="font-size:46px;color:#ca3521">error</span><h1 style="font-size:23px;margin-top:12px;color:#172b4d">Erro ao abrir o quadro</h1><p style="color:#626f86">${String(error?.message || error)}</p><button class="btn btn-primary" onclick="location.reload()">Tentar novamente</button></section></main>`;
       };
       async function boot() {
-        const [styles, theme, trelloTheme, mobilePolish, mobileV2, productionStyle, lossesStyle, simpleModern, productionCompact, stockCompact] = await Promise.all([
+        const [styles, theme, trelloTheme, mobilePolish, mobileV2, productionStyle, lossesStyle, simpleModern, productionCompact, stockCompact, mobileMenuFix] = await Promise.all([
           fetchText('styles.html'),
           fetchText('theme.html'),
           fetchText('trello-theme.html'),
@@ -72,9 +72,10 @@
           fetchText('perdas-v2-style.html'),
           fetchText('simple-modern.html'),
           fetchText('producao-compact.html'),
-          fetchText('estoque-compact-style.html')
+          fetchText('estoque-compact-style.html'),
+          fetchText('mobile-menu-fix.html')
         ]);
-        document.head.insertAdjacentHTML('beforeend', styles + theme + trelloTheme + mobilePolish + mobileV2 + productionStyle + lossesStyle + simpleModern + productionCompact + stockCompact + '<style>html,body{touch-action:pan-x pan-y}@media(max-width:900px){input,select,textarea,.form-control,.form-select{font-size:16px!important}}.firebase-status{position:fixed;right:14px;bottom:72px;z-index:1085;padding:7px 11px;border-radius:999px;background:#172b4d;color:#fff;font:600 11px Inter,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.18);pointer-events:none}.firebase-status::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#12b76a}@media(min-width:901px){.firebase-status{bottom:14px}}</style>');
+        document.head.insertAdjacentHTML('beforeend', styles + theme + trelloTheme + mobilePolish + mobileV2 + productionStyle + lossesStyle + simpleModern + productionCompact + stockCompact + mobileMenuFix + '<style>html,body{touch-action:pan-x pan-y}@media(max-width:900px){input,select,textarea,.form-control,.form-select{font-size:16px!important}}.firebase-status{position:fixed;right:14px;bottom:72px;z-index:1085;padding:7px 11px;border-radius:999px;background:#172b4d;color:#fff;font:600 11px Inter,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.18);pointer-events:none}.firebase-status::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#12b76a}@media(min-width:901px){.firebase-status{bottom:14px}}</style>');
         document.body.innerHTML = `
           <div id="bootLoader" class="boot-loader"><div class="brand-mark"><span class="material-symbols-rounded">view_kanban</span></div><div class="spinner-border text-primary" role="status"></div><span>Organizando seu quadro...</span></div>
           <div id="loginMount"></div>
