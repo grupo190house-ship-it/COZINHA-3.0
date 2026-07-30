@@ -27,7 +27,7 @@
   <script>
     (() => {
       'use strict';
-      const ASSET_VERSION = '20260730-simple-modern-v7';
+      const ASSET_VERSION = '20260730-simple-modern-v8';
       if (!localStorage.getItem('cozinhaflow_theme')) localStorage.setItem('cozinhaflow_theme', 'light');
       const fetchText = async file => {
         const url = new URL(file, document.baseURI);
@@ -82,7 +82,7 @@
         ]);
         const pages=['dashboard','tarefas','estoque','insumos','produtos','producao','compras','fornecedores','inventario','perdas','relatorios','operadores','auditoria','configuracoes','perfil'];
         document.getElementById('pageContent').innerHTML=(await Promise.all(pages.map(name=>fetchText(`${name}.html`)))).join('\n');
-        for(const file of ['firebase-adapter.html','google-compat.html','drive-adapter.html','utils-js.html','app-js.html','upload-image-v2.html','tarefas-js.html','dashboard-js.html','estoque-js.html','producao-v2-js.html','producao-validation-fix.html','perdas-v2-js.html','perdas-upload-transaction.html','compras-js.html','inventario-js.html','login-js.html','simple-ux.html']) await insertScriptFragment(file);
+        for(const file of ['firebase-adapter.html','google-compat.html','drive-adapter.html','utils-js.html','app-js.html','upload-image-v2.html','tarefas-js.html','dashboard-js.html','estoque-js.html','producao-v2-js.html','producao-validation-fix.html','perdas-v2-js.html','perdas-upload-transaction.html','compras-js.html','inventario-js.html','login-js.html','simple-ux.html','simple-ux-order-fix.html']) await insertScriptFragment(file);
         await App.boot();
       }
       boot().catch(fail);
