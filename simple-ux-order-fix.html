@@ -1,0 +1,31 @@
+<script>
+(() => {
+  'use strict';
+
+  function arrangeFinishForm() {
+    const form = document.getElementById('productionFinishForm');
+    if (!form || form.dataset.simpleUx !== '1' || form.dataset.simpleOrder === '1') return;
+
+    const intro = form.querySelector('.simple-form-intro')?.closest('.col-12');
+    const summary = form.querySelector('.production-result-summary')?.closest('.col-12');
+    const unitRow = form.querySelector('.production-unit-row')?.closest('.col-12');
+    const toggle = document.getElementById('simpleProductionLossToggle')?.closest('.col-12');
+    const lossFields = document.getElementById('simpleProductionLossFields');
+    const yieldBox = document.getElementById('finishYieldV2')?.closest('.col-12');
+    const costBox = form.querySelector('.production-cost-preview')?.closest('.col-12');
+    const advanced = form.querySelector('.simple-more');
+    const warning = [...form.querySelectorAll('.alert')].find(item => item.textContent.includes('Ao finalizar'))?.closest('.col-12');
+
+    if (intro) form.prepend(intro);
+    [summary, unitRow, toggle, lossFields, yieldBox, costBox, advanced, warning]
+      .filter(Boolean)
+      .forEach(element => form.appendChild(element));
+
+    form.dataset.simpleOrder = '1';
+  }
+
+  const host = document.getElementById('modalBody');
+  if (host) new MutationObserver(() => requestAnimationFrame(arrangeFinishForm)).observe(host, { childList: true, subtree: true });
+  document.getElementById('appModal')?.addEventListener('shown.bs.modal', () => setTimeout(arrangeFinishForm, 0));
+})();
+</script>
