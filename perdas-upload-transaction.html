@@ -1,0 +1,48 @@
+<script>
+(() => {
+  'use strict';
+
+  if (typeof App === 'undefined' || typeof UI === 'undefined') return;
+
+  const originalServer = App.server.bind(App);
+  const originalUploadImage = UI.uploadImage.bind(UI);
+  let pendingLossExit = null;
+
+  const lossFormOpen = () => {
+    const form = document.getElementById('lossV2Form');
+    const modal = document.getElementById('appModal');
+    return Boolean(form && modal?.classList.contains('show'));
+  };
+
+  App.server = (action, payload = {}) => {
+    if (action === 'estoque.exit' && payload?.TIPO === 'PERDA' && lossFormOpen()) {
+      pendingLossExit = { payload: { ...payload } };
+      return Promise.resolve({ deferred: true });
+    }
+    return originalServer(action, payload);
+  };
+
+  UI.uploadImage = async input => {
+    try {
+      const url = await originalUploadImage(input);
+      if (pendingLossExit) {
+        const operation = pendingLossExit;
+        pendingLossExit = null;
+        await originalServer('estoque.exit', operation.payload);
+      }
+      return url;
+    } catch (error) {
+      pendingLossExit = null;
+      throw error;
+    }
+  };
+
+  document.getElementById('appModal')?.addEventListener('hidden.bs.modal', () => {
+    pendingLossExit = null;
+  });
+
+  window.LossUploadTransaction = {
+    hasPendingExit: () => Boolean(pendingLossExit)
+  };
+})();
+</script>
