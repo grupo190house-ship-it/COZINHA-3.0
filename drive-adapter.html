@@ -13,7 +13,8 @@
   }
 
   const endpoint = () => {
-    const value = String(window.App?.state?.config?.DRIVE_UPLOAD_URL || localStorage.getItem('cozinhaflow_drive_upload_url') || DEFAULT_ENDPOINT).trim();
+    const configured = typeof App !== 'undefined' ? App?.state?.config?.DRIVE_UPLOAD_URL : '';
+    const value = String(configured || localStorage.getItem('cozinhaflow_drive_upload_url') || DEFAULT_ENDPOINT).trim();
     if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(value)) {
       const error = new Error('Configure a URL /exec do Google Drive em Configurações.');
       error.code = 'DRIVE_NOT_CONFIGURED';
