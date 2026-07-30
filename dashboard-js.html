@@ -1,22 +1,208 @@
 <script>
   (() => {
+    'use strict';
+
     let bound = false;
-    const metricMap = {
-      lowStock: ['metricLowStock', UI.number],
-      productionToday: ['metricProductionToday', UI.number],
-      productionsInProgress: ['metricProductionsInProgress', UI.number],
-      productsInStock: ['metricProductsInStock', UI.number],
-      pendingPurchases: ['metricPurchases', UI.number],
-      lossesToday: ['metricLossesToday', UI.currency]
+    const TIME_ZONE = 'America/Sao_Paulo';
+
+    const normalize = value => String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+
+    const number = value => {
+      const parsed = Number(String(value ?? '').replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : 0;
     };
 
+    const dateParts = date => {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(date);
+      const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+      return `${values.year}-${values.month}-${values.day}`;
+    };
+
+    const businessDate = value => {
+      if (!value) return '';
+      if (value instanceof Date) return dateParts(value);
+      const raw = String(value).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+      const hasTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
+      if (/^\d{4}-\d{2}-\d{2}T/.test(raw) && !hasTimeZone) return raw.slice(0, 10);
+      const parsed = new Date(raw);
+      return Number.isNaN(parsed.getTime()) ? raw.slice(0, 10) : dateParts(parsed);
+    };
+
+    const unitLabel = (unit, quantity = 2) => {
+      const plural = Number(quantity) !== 1;
+      const key = normalize(unit);
+      return ({
+        un: plural ? 'unidades' : 'unidade',
+        unidade: plural ? 'unidades' : 'unidade',
+        pct: plural ? 'pacotes' : 'pacote',
+        pacote: plural ? 'pacotes' : 'pacote',
+        cx: plural ? 'caixas' : 'caixa',
+        caixa: plural ? 'caixas' : 'caixa',
+        porcao: plural ? 'porções' : 'porção',
+        kg: 'kg',
+        g: 'g',
+        l: 'L',
+        ml: 'mL'
+      })[key] || unit || (plural ? 'itens' : 'item');
+    };
+
+    const isFinished = status => ['finalizada', 'finalizado', 'concluida', 'concluido'].includes(normalize(status));
+    const isRunning = status => ['em producao', 'em andamento', 'andamento'].includes(normalize(status));
+    const isInactive = status => ['inativo', 'inativa'].includes(normalize(status));
+    const isClosedPurchase = status => ['recebido', 'recebida', 'cancelado', 'cancelada'].includes(normalize(status));
+
+    function installStyle() {
+      if (document.getElementById('dashboard-metrics-v2-style')) return;
+      const style = document.createElement('style');
+      style.id = 'dashboard-metrics-v2-style';
+      style.textContent = `
+        #view-dashboard .metric-detail {
+          display: block;
+          min-height: 16px;
+          margin-top: 4px;
+          overflow: hidden;
+          color: #626f86;
+          font-size: 11px;
+          font-weight: 600;
+          line-height: 1.35;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        [data-theme="dark"] #view-dashboard .metric-detail { color: #9fadbc; }
+        @media (max-width: 600px) {
+          #view-dashboard .metric-detail { font-size: 10px; white-space: normal; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    async function readCollection(name) {
+      const bridge = window.FirebaseBridge;
+      if (!bridge?.db || !bridge?.root) throw new Error('Banco de dados indisponível.');
+      const snapshot = await bridge.db.ref(`${bridge.root}/${name}`).once('value');
+      return Object.values(snapshot.val() || {}).filter(Boolean);
+    }
+
+    async function getFirebaseDashboard() {
+      const [inputs, products, productions, purchases, losses, inventories] = await Promise.all([
+        readCollection('insumos'),
+        readCollection('produtos'),
+        readCollection('producoes'),
+        readCollection('compras'),
+        readCollection('perdas'),
+        readCollection('inventarios')
+      ]);
+
+      const today = businessDate(new Date());
+      const productsById = new Map(products.map(item => [String(item.ID), item]));
+      const lowStock = inputs.filter(item => !isInactive(item.STATUS) && number(item.ESTOQUE_ATUAL) <= number(item.ESTOQUE_MINIMO));
+      const activeProductions = productions.filter(item => isRunning(item.STATUS));
+      const finishedToday = productions.filter(item => {
+        if (!isFinished(item.STATUS)) return false;
+        const date = item.HORA_FIM || item.FINALIZADO_EM || item.CONCLUIDO_EM || item.ATUALIZADO_EM || item.HORA_INICIO;
+        return businessDate(date) === today;
+      });
+      const lossesTodayRows = losses.filter(item => businessDate(item.DATA_HORA || item.CRIADO_EM || item.DATA) === today);
+
+      const productionGroups = new Map();
+      finishedToday.forEach(item => {
+        const product = productsById.get(String(item.PRODUTO_ID));
+        const unit = String(item.UNIDADE_PRODUTO || product?.UNIDADE || 'un');
+        const key = normalize(unit) || 'un';
+        const current = productionGroups.get(key) || { unit, quantity: 0 };
+        current.quantity += number(item.QTD_PRODUZIDA ?? item.QUANTIDADE_PRODUZIDA);
+        productionGroups.set(key, current);
+      });
+
+      const groups = [...productionGroups.values()].filter(group => group.quantity > 0);
+      let productionTodayDisplay = '0';
+      let productionTodayDetail = 'Nenhuma produção finalizada hoje';
+      if (groups.length === 1) {
+        const group = groups[0];
+        productionTodayDisplay = UI.number(group.quantity);
+        productionTodayDetail = `${unitLabel(group.unit, group.quantity)} · ${finishedToday.length} ${finishedToday.length === 1 ? 'produção' : 'produções'}`;
+      } else if (groups.length > 1) {
+        productionTodayDisplay = UI.number(finishedToday.length);
+        const breakdown = groups.map(group => `${UI.number(group.quantity)} ${unitLabel(group.unit, group.quantity)}`).join(' + ');
+        productionTodayDetail = `${finishedToday.length} produções · ${breakdown}`;
+      } else if (finishedToday.length > 0) {
+        productionTodayDisplay = UI.number(finishedToday.length);
+        productionTodayDetail = `${finishedToday.length} ${finishedToday.length === 1 ? 'produção finalizada' : 'produções finalizadas'}`;
+      }
+
+      const lossValue = lossesTodayRows.reduce((sum, item) => {
+        const explicit = number(item.CUSTO ?? item.VALOR_TOTAL ?? item.VALOR_PERDA);
+        return sum + (explicit || number(item.QUANTIDADE) * number(item.CUSTO_UNITARIO));
+      }, 0);
+
+      return {
+        date: today,
+        cards: {
+          lowStock: lowStock.length,
+          productionTodayDisplay,
+          productionTodayDetail,
+          productionsInProgress: activeProductions.length,
+          productsInStock: products.filter(item => !isInactive(item.STATUS) && number(item.ESTOQUE_ATUAL) > 0).length,
+          pendingPurchases: purchases.filter(item => !isClosedPurchase(item.STATUS)).length,
+          lossesToday: lossValue,
+          lossesTodayCount: lossesTodayRows.length,
+          pendingInventories: inventories.filter(item => normalize(item.STATUS) === 'pendente').length
+        },
+        lowStock: lowStock.slice(0, 8).map(item => ({
+          id: item.ID,
+          name: item.NOME,
+          balance: number(item.ESTOQUE_ATUAL),
+          minimum: number(item.ESTOQUE_MINIMO),
+          unit: item.UNIDADE || ''
+        })),
+        activeProductions: activeProductions.slice(0, 8).map(item => ({
+          id: item.ID,
+          code: item.CODIGO,
+          product: item.PRODUTO_NOME,
+          operator: item.OPERADOR_NOME,
+          startedAt: item.HORA_INICIO
+        }))
+      };
+    }
+
+    async function getData() {
+      if (window.FirebaseBridge?.db && window.FirebaseBridge?.root) return getFirebaseDashboard();
+      const legacy = await App.server('dashboard.get');
+      legacy.cards.productionTodayDisplay = UI.number(legacy.cards.productionToday || 0);
+      legacy.cards.productionTodayDetail = 'quantidade registrada hoje';
+      legacy.cards.lossesTodayCount = 0;
+      return legacy;
+    }
+
     async function load() {
+      installStyle();
       if (!bound) bind();
       document.querySelectorAll('#view-dashboard .metric-value').forEach(item => item.textContent = '…');
-      const data = await App.server('dashboard.get');
-      Object.entries(metricMap).forEach(([key, [id, format]]) => {
-        document.getElementById(id).textContent = format(data.cards[key]);
-      });
+      const data = await getData();
+      const cards = data.cards || {};
+
+      document.getElementById('metricLowStock').textContent = UI.number(cards.lowStock || 0);
+      document.getElementById('metricProductionToday').textContent = cards.productionTodayDisplay ?? UI.number(cards.productionToday || 0);
+      document.getElementById('metricProductionsInProgress').textContent = UI.number(cards.productionsInProgress || 0);
+      document.getElementById('metricProductsInStock').textContent = UI.number(cards.productsInStock || 0);
+      document.getElementById('metricPurchases').textContent = UI.number(cards.pendingPurchases || 0);
+      document.getElementById('metricLossesToday').textContent = UI.currency(cards.lossesToday || 0);
+
+      document.getElementById('metricLowStockDetail').textContent = `${UI.number(cards.lowStock || 0)} ${(cards.lowStock || 0) === 1 ? 'insumo' : 'insumos'}`;
+      document.getElementById('metricProductionTodayDetail').textContent = cards.productionTodayDetail || 'Nenhuma produção finalizada hoje';
+      document.getElementById('metricProductionsInProgressDetail').textContent = `${UI.number(cards.productionsInProgress || 0)} ${(cards.productionsInProgress || 0) === 1 ? 'produção aberta' : 'produções abertas'}`;
+      document.getElementById('metricLossesTodayDetail').textContent = `${UI.number(cards.lossesTodayCount || 0)} ${(cards.lossesTodayCount || 0) === 1 ? 'perda registrada' : 'perdas registradas'}`;
+
       document.getElementById('dashboardGreeting').textContent = `Olá, ${App.state.user.name.split(' ')[0]}. Resumo de ${UI.date(data.date)}.`;
       document.getElementById('dashboardLowStock').innerHTML = data.lowStock.length
         ? data.lowStock.map(item => `
@@ -42,6 +228,7 @@
       bound = true;
       document.getElementById('refreshDashboard').onclick = load;
     }
+
     window.ModuleLoaders.dashboard = load;
   })();
 </script>
