@@ -1,0 +1,68 @@
+<script>
+(() => {
+  'use strict';
+
+  function applyProductionValidationFix() {
+    const form = document.getElementById('productionFinishForm');
+    if (!form || form.dataset.validationFix === '1') return;
+    form.dataset.validationFix = '1';
+
+    const quantity = document.getElementById('finishOutputQuantityV2');
+    const unit = document.getElementById('finishOutputUnitV2');
+    const loss = form.querySelector('[name="QUANTIDADE_PERDIDA"]');
+    const yieldText = document.getElementById('finishYieldV2');
+    const yieldAlert = yieldText?.closest('.alert');
+    if (!quantity || !unit || !loss) return;
+
+    const discreteUnits = new Set(['un', 'pct', 'porção', 'cx']);
+    const syncRules = () => {
+      const discrete = discreteUnits.has(String(unit.value || '').toLowerCase());
+      quantity.min = discrete ? '1' : '0.001';
+      quantity.step = discrete ? '1' : '0.001';
+      loss.min = '0';
+      loss.step = discrete ? '1' : '0.001';
+
+      const value = Number(quantity.value || 0);
+      if (discrete && value > 0 && !Number.isInteger(value)) {
+        quantity.setCustomValidity('Informe uma quantidade inteira para unidades, pacotes, porções ou caixas.');
+      } else {
+        quantity.setCustomValidity('');
+      }
+
+      requestAnimationFrame(() => {
+        if (!yieldText || !yieldAlert) return;
+        const matches = [...yieldText.textContent.matchAll(/([\d.,]+)%/g)];
+        const percentage = matches.length
+          ? Number(matches[matches.length - 1][1].replace(/\./g, '').replace(',', '.'))
+          : 0;
+        const warningId = 'productionYieldWarning';
+        let warning = document.getElementById(warningId);
+        if (percentage > 100.5) {
+          yieldAlert.classList.remove('alert-info');
+          yieldAlert.classList.add('alert-warning');
+          if (!warning) {
+            warning = document.createElement('div');
+            warning.id = warningId;
+            warning.className = 'small mt-1';
+            yieldAlert.appendChild(warning);
+          }
+          warning.textContent = 'O peso calculado ficou maior que o insumo retirado. Confira o peso por unidade ou a quantidade separada.';
+        } else {
+          yieldAlert.classList.remove('alert-warning');
+          yieldAlert.classList.add('alert-info');
+          warning?.remove();
+        }
+      });
+    };
+
+    quantity.addEventListener('input', syncRules);
+    unit.addEventListener('change', syncRules);
+    loss.addEventListener('input', syncRules);
+    syncRules();
+  }
+
+  const observer = new MutationObserver(applyProductionValidationFix);
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener('click', () => setTimeout(applyProductionValidationFix, 0));
+})();
+</script>
