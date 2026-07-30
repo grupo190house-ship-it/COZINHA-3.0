@@ -6,19 +6,29 @@
   if (!originalRun) throw new Error('A camada Firebase não foi carregada antes do Google Drive.');
 
   const DEFAULT_ENDPOINT = 'https://script.google.com/macros/s/AKfycbybwjaZh99wXGPUcNSqQ539Rwe0dOcBAHDRVcXYwqBTSNyqxIzmmPHnF85_o5CIJ3eF/exec';
+  const UPLOAD_TIMEOUT_MS = 45000;
+
   if (!localStorage.getItem('cozinhaflow_drive_upload_url')) {
     localStorage.setItem('cozinhaflow_drive_upload_url', DEFAULT_ENDPOINT);
   }
 
   const endpoint = () => {
-    const value = String(App?.state?.config?.DRIVE_UPLOAD_URL || localStorage.getItem('cozinhaflow_drive_upload_url') || DEFAULT_ENDPOINT).trim();
+    const value = String(window.App?.state?.config?.DRIVE_UPLOAD_URL || localStorage.getItem('cozinhaflow_drive_upload_url') || DEFAULT_ENDPOINT).trim();
     if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(value)) {
-      const error = new Error('Configure a URL do Google Drive em Configurações → Upload de fotos.');
+      const error = new Error('Configure a URL /exec do Google Drive em Configurações.');
       error.code = 'DRIVE_NOT_CONFIGURED';
       throw error;
     }
     return value;
   };
+
+  const publicMedia = value => ({
+    id: value?.ID || value?.fileId || '',
+    name: value?.name || '',
+    url: value?.url || '',
+    driveUrl: value?.driveUrl || '',
+    provider: value?.provider || 'google-drive'
+  });
 
   function uploadToDrive(payload) {
     return new Promise(async (resolve, reject) => {
@@ -26,13 +36,51 @@
       let form;
       let timer;
       let listener;
+      let mediaRef;
+      let mediaListener;
+      let finished = false;
+
+      const finish = (error, data) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        if (listener) window.removeEventListener('message', listener);
+        if (mediaRef && mediaListener) mediaRef.off('child_added', mediaListener);
+        form?.remove();
+        setTimeout(() => frame?.remove(), 250);
+        if (error) reject(error);
+        else resolve(publicMedia(data));
+      };
+
       try {
         const url = endpoint();
-        const currentUser = window.FirebaseBridge?.auth?.currentUser;
-        if (!currentUser) throw new Error('Faça login novamente antes de enviar a foto.');
+        const bridge = window.FirebaseBridge;
+        const currentUser = bridge?.auth?.currentUser;
+        if (!currentUser) throw new Error('Sua sessão expirou. Entre novamente antes de enviar a foto.');
+
         const idToken = await currentUser.getIdToken(true);
-        const requestId = `drive-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const uid = currentUser.uid;
+        const requestId = `cf-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const originalName = String(payload?.name || 'foto.jpg').replace(/[\\/:*?"<>|#%{}~&]/g, '_');
+        const taggedName = `${requestId}-${originalName}`;
         const frameName = `driveFrame-${requestId}`;
+        const startedAt = Date.now();
+
+        /* Confirmação alternativa: o Apps Script grava o arquivo no nó media.
+           Isto resolve navegadores que bloqueiam o postMessage do iframe. */
+        if (bridge?.db && bridge?.root) {
+          mediaRef = bridge.db.ref(`${bridge.root}/media`);
+          mediaListener = snapshot => {
+            const value = snapshot.val() || {};
+            const createdAt = Date.parse(value.createdAt || 0) || 0;
+            const sameUser = String(value.userId || '') === String(uid);
+            const sameRequest = String(value.name || '').includes(requestId);
+            if (sameUser && sameRequest && createdAt >= startedAt - 10000 && value.url) finish(null, value);
+          };
+          mediaRef.on('child_added', mediaListener, error => {
+            console.warn('Não foi possível acompanhar o upload pelo Firebase:', error);
+          });
+        }
 
         frame = document.createElement('iframe');
         frame.name = frameName;
@@ -44,13 +92,14 @@
         form.method = 'POST';
         form.action = url;
         form.target = frameName;
+        form.acceptCharset = 'UTF-8';
         form.hidden = true;
 
         const fields = {
           action: 'driveUpload',
           requestId,
           idToken,
-          name: payload?.name || 'foto.jpg',
+          name: taggedName,
           mimeType: payload?.mimeType || 'image/jpeg',
           base64: payload?.base64 || ''
         };
@@ -63,34 +112,22 @@
         });
         document.body.appendChild(form);
 
-        const cleanup = () => {
-          clearTimeout(timer);
-          window.removeEventListener('message', listener);
-          form?.remove();
-          frame?.remove();
-        };
-
         listener = event => {
           if (event.source !== frame.contentWindow) return;
           const message = event.data;
           if (!message || message.type !== 'cozinhaflow-drive-upload' || message.requestId !== requestId) return;
-          cleanup();
-          if (message.ok) resolve(message.data);
-          else reject(Object.assign(new Error(message.error || 'Falha no upload para o Google Drive.'), { code: 'DRIVE_UPLOAD_ERROR' }));
+          if (message.ok) finish(null, message.data);
+          else finish(Object.assign(new Error(message.error || 'O Google Drive recusou o envio da foto.'), { code: 'DRIVE_UPLOAD_ERROR' }));
         };
         window.addEventListener('message', listener);
+
         timer = setTimeout(() => {
-          cleanup();
-          reject(Object.assign(new Error('O Google Drive demorou para responder. Tente novamente.'), { code: 'DRIVE_UPLOAD_TIMEOUT' }));
-        }, 120000);
+          finish(Object.assign(new Error('O Google Drive não respondeu em 45 segundos. Confirme se a implantação está como “Executar como: Eu” e “Quem pode acessar: Qualquer pessoa”, depois implante uma nova versão.'), { code: 'DRIVE_UPLOAD_TIMEOUT' }));
+        }, UPLOAD_TIMEOUT_MS);
 
         form.submit();
       } catch (error) {
-        clearTimeout(timer);
-        window.removeEventListener('message', listener);
-        form?.remove();
-        frame?.remove();
-        reject(error);
+        finish(error);
       }
     });
   }
@@ -115,6 +152,6 @@
   });
 
   window.google.script.run = relay();
-  window.DriveBridge = { upload: uploadToDrive, endpoint, defaultEndpoint: DEFAULT_ENDPOINT };
+  window.DriveBridge = { upload: uploadToDrive, endpoint, defaultEndpoint: DEFAULT_ENDPOINT, timeout: UPLOAD_TIMEOUT_MS };
 })();
 </script>
