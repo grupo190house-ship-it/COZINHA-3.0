@@ -1,0 +1,32 @@
+<style id="losses-v2-style">
+  .loss-v2-cost-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 82px;
+    padding: 14px 16px;
+    border: 1px solid #f5b7b1;
+    border-radius: 12px;
+    background: #fff4f3;
+  }
+  .loss-v2-cost-card > .material-symbols-rounded {
+    display: grid;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    border-radius: 10px;
+    background: #ffe2df;
+    color: #ca3521;
+  }
+  .loss-v2-cost-card small,
+  .loss-v2-cost-card strong { display: block; }
+  .loss-v2-cost-card small { color: #626f86; font-size: 11px; }
+  .loss-v2-cost-card strong { margin: 2px 0; color: #172b4d; font-size: 21px; }
+  [data-theme="dark"] .loss-v2-cost-card { border-color: #7a3b35; background: #362724; }
+  [data-theme="dark"] .loss-v2-cost-card strong { color: #f1f3f5; }
+  @media (max-width: 600px) {
+    .loss-v2-cost-card { min-height: 74px; padding: 12px; }
+    .loss-v2-cost-card strong { font-size: 19px; }
+  }
+</style>
