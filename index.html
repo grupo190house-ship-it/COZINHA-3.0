@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <meta name="description" content="CozinhaFlow ERP — estoque, produção, compras e tarefas operacionais.">
   <title>CozinhaFlow ERP</title>
@@ -27,8 +27,16 @@
   <script>
     (() => {
       'use strict';
-      const ASSET_VERSION = '20260730-estoque-compacto-v10';
+      const ASSET_VERSION = '20260730-no-zoom-v11';
       if (!localStorage.getItem('cozinhaflow_theme')) localStorage.setItem('cozinhaflow_theme', 'light');
+
+      const stopZoom = event => event.preventDefault();
+      ['gesturestart', 'gesturechange', 'gestureend'].forEach(type => document.addEventListener(type, stopZoom, { passive: false }));
+      document.addEventListener('touchmove', event => {
+        if (event.touches && event.touches.length > 1) event.preventDefault();
+      }, { passive: false });
+      document.addEventListener('dblclick', stopZoom, { passive: false });
+
       const fetchText = async file => {
         const url = new URL(file, document.baseURI);
         url.searchParams.set('v', ASSET_VERSION);
@@ -66,7 +74,7 @@
           fetchText('producao-compact.html'),
           fetchText('estoque-compact-style.html')
         ]);
-        document.head.insertAdjacentHTML('beforeend', styles + theme + trelloTheme + mobilePolish + mobileV2 + productionStyle + lossesStyle + simpleModern + productionCompact + stockCompact + '<style>.firebase-status{position:fixed;right:14px;bottom:72px;z-index:1085;padding:7px 11px;border-radius:999px;background:#172b4d;color:#fff;font:600 11px Inter,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.18);pointer-events:none}.firebase-status::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#12b76a}@media(min-width:901px){.firebase-status{bottom:14px}}</style>');
+        document.head.insertAdjacentHTML('beforeend', styles + theme + trelloTheme + mobilePolish + mobileV2 + productionStyle + lossesStyle + simpleModern + productionCompact + stockCompact + '<style>html,body{touch-action:pan-x pan-y}@media(max-width:900px){input,select,textarea,.form-control,.form-select{font-size:16px!important}}.firebase-status{position:fixed;right:14px;bottom:72px;z-index:1085;padding:7px 11px;border-radius:999px;background:#172b4d;color:#fff;font:600 11px Inter,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.18);pointer-events:none}.firebase-status::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#12b76a}@media(min-width:901px){.firebase-status{bottom:14px}}</style>');
         document.body.innerHTML = `
           <div id="bootLoader" class="boot-loader"><div class="brand-mark"><span class="material-symbols-rounded">view_kanban</span></div><div class="spinner-border text-primary" role="status"></div><span>Organizando seu quadro...</span></div>
           <div id="loginMount"></div>
