@@ -10,21 +10,6 @@
       lossesToday: ['metricLossesToday', UI.currency]
     };
 
-    function renderOnboarding(onboarding) {
-      const card = document.getElementById('onboardingCard');
-      card.classList.toggle('onboarding-complete', onboarding.complete);
-      document.getElementById('onboardingProgress').textContent = onboarding.complete
-        ? 'Ambiente pronto'
-        : `${onboarding.completed}/${onboarding.total}`;
-      document.getElementById('onboardingSteps').innerHTML = onboarding.steps.map(step => `
-        <button class="onboarding-step ${step.complete ? 'complete' : ''}" data-navigate="${UI.esc(step.module)}">
-          <span class="material-symbols-rounded">${step.complete ? 'check_circle' : 'radio_button_unchecked'}</span>
-          <span>${UI.esc(step.label)}</span>
-          <span class="material-symbols-rounded ms-auto">chevron_right</span>
-        </button>
-      `).join('');
-    }
-
     async function load() {
       if (!bound) bind();
       document.querySelectorAll('#view-dashboard .metric-value').forEach(item => item.textContent = '…');
@@ -33,7 +18,6 @@
         document.getElementById(id).textContent = format(data.cards[key]);
       });
       document.getElementById('dashboardGreeting').textContent = `Olá, ${App.state.user.name.split(' ')[0]}. Resumo de ${UI.date(data.date)}.`;
-      renderOnboarding(data.onboarding);
       document.getElementById('dashboardLowStock').innerHTML = data.lowStock.length
         ? data.lowStock.map(item => `
           <div class="operation-row">
