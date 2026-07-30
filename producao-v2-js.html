@@ -1,0 +1,244 @@
+<script>
+  (() => {
+    'use strict';
+
+    const state = { inputs: [], products: [], productions: [] };
+    const discreteUnits = ['un', 'pct', 'porção', 'cx'];
+    const unitOptions = ['un', 'pct', 'porção', 'cx', 'kg', 'g'];
+
+    const byId = (rows, id) => rows.find(row => String(row.ID) === String(id));
+    const normalize = value => String(value || '').trim().toLowerCase();
+    const unitName = (unit, quantity = 2) => {
+      const plural = Number(quantity) !== 1;
+      return ({
+        un: plural ? 'unidades' : 'unidade',
+        pct: plural ? 'pacotes' : 'pacote',
+        'porção': plural ? 'porções' : 'porção',
+        cx: plural ? 'caixas' : 'caixa',
+        kg: 'kg',
+        g: 'g'
+      })[normalize(unit)] || unit || (plural ? 'unidades' : 'unidade');
+    };
+    const inferOutputUnit = (production, product) => {
+      const raw = normalize(product?.UNIDADE || production?.UNIDADE_PRODUTO);
+      const weight = Number(product?.PESO_UNITARIO || production?.PESO_UNITARIO_PRODUTO || 0);
+      const productName = normalize(product?.NOME || production?.PRODUTO_NOME);
+      if (weight > 0 && ['kg', 'g'].includes(raw)) {
+        return /(pacote|embalagem|saco|porção)/i.test(productName) ? 'pct' : 'un';
+      }
+      return raw || 'un';
+    };
+    const toKg = (value, unit) => normalize(unit) === 'kg'
+      ? Number(value || 0)
+      : normalize(unit) === 'g' ? Number(value || 0) / 1000 : 0;
+
+    function outputDetails(production) {
+      const product = byId(state.products, production.PRODUTO_ID);
+      const unit = inferOutputUnit(production, product);
+      return {
+        product,
+        unit,
+        weight: Number(product?.PESO_UNITARIO || production.PESO_UNITARIO_PRODUTO || 0),
+        weightUnit: product?.UNIDADE_PESO || production.UNIDADE_PESO_PRODUTO || 'g'
+      };
+    }
+
+    function statusTone(status) {
+      if (status === 'Finalizada') return ['finished', 'Finalizada'];
+      if (status === 'Cancelada') return ['cancelled', 'Cancelada'];
+      return ['running', 'Em produção'];
+    }
+
+    function yieldSummary(row, unit, weight, weightUnit) {
+      if (row.STATUS === 'Em produção') return 'Será calculado ao finalizar';
+      const output = Number(row.QTD_PRODUZIDA || 0);
+      const input = Number(row.QTD_INSUMO || 0);
+      const inputKg = toKg(input, row.UNIDADE_INSUMO);
+      const directKg = toKg(output, unit);
+      const itemKg = toKg(weight, weightUnit);
+      const packedKg = directKg || (itemKg > 0 ? output * itemKg : 0);
+      if (inputKg > 0 && discreteUnits.includes(normalize(unit))) {
+        const base = `${UI.number(output / inputKg)} ${unitName(unit)}/kg`;
+        return packedKg > 0 ? `${base} · ${UI.number(packedKg / inputKg * 100)}% aproveitado` : base;
+      }
+      if (inputKg > 0 && packedKg > 0) return `${UI.number(packedKg / inputKg * 100)}% de aproveitamento`;
+      if (input > 0 && output > 0) return `${UI.number(output / input)} ${unitName(unit)} por ${row.UNIDADE_INSUMO || 'unidade de insumo'}`;
+      return '—';
+    }
+
+    function render() {
+      const host = document.getElementById('productionsTable');
+      const rows = [...state.productions].sort((a, b) => String(b.HORA_INICIO || '').localeCompare(String(a.HORA_INICIO || '')));
+      if (!rows.length) {
+        host.innerHTML = '<div class="production-list"><div class="production-empty"><span class="material-symbols-rounded">precision_manufacturing</span>Nenhuma produção registrada.</div></div>';
+        return;
+      }
+      host.innerHTML = `<div class="production-list">${rows.map(row => {
+        const [tone, statusLabel] = statusTone(row.STATUS);
+        const details = outputDetails(row);
+        const outputQuantity = row.STATUS === 'Em produção'
+          ? 'Aguardando finalização'
+          : `${UI.number(row.QTD_PRODUZIDA || 0)} ${unitName(details.unit, row.QTD_PRODUZIDA)}`;
+        const unitCost = row.STATUS === 'Em produção' || !Number(row.CUSTO_UNITARIO_PRODUZIDO)
+          ? '—'
+          : `${UI.currency(row.CUSTO_UNITARIO_PRODUZIDO)}/${details.unit}`;
+        return `<article class="production-card is-${tone}" data-production-id="${UI.esc(row.ID)}">
+          <header class="production-card-head">
+            <div><span class="production-card-code">${UI.esc(row.CODIGO || 'Produção')}</span><span class="production-card-date">${UI.date(row.HORA_INICIO)} · ${UI.esc(row.OPERADOR_NOME || 'Sem operador')}</span></div>
+            <span class="production-status ${tone}">${statusLabel}</span>
+          </header>
+          <div class="production-flow">
+            <div class="production-flow-item"><small>Insumo retirado</small><strong>${UI.esc(row.INSUMO_NOME || '—')}</strong><span>${UI.esc(row.CONSUMO_INSUMO || `${UI.number(row.QTD_INSUMO)} ${row.UNIDADE_INSUMO || ''}`)}</span></div>
+            <span class="production-flow-arrow"><span class="material-symbols-rounded">arrow_forward</span></span>
+            <div class="production-flow-item"><small>Produto final</small><strong>${UI.esc(row.PRODUTO_NOME || '—')}</strong><span>${outputQuantity}</span></div>
+          </div>
+          <div class="production-card-metrics">
+            <div class="production-card-metric"><small>Rendimento</small><strong>${UI.esc(yieldSummary(row, details.unit, details.weight, details.weightUnit))}</strong></div>
+            <div class="production-card-metric"><small>Custo dos insumos</small><strong>${UI.currency(row.CUSTO_TOTAL || row.CUSTO_ESTIMADO_INSUMOS || 0)}</strong></div>
+            <div class="production-card-metric"><small>Custo por ${UI.esc(unitName(details.unit, 1))}</small><strong>${unitCost}</strong></div>
+          </div>
+          ${row.STATUS === 'Em produção' && App.canWrite('producoes') ? `<div class="production-card-actions"><button class="btn btn-primary" data-production-action="finish" data-production-id="${UI.esc(row.ID)}"><span class="material-symbols-rounded">task_alt</span>Finalizar produção</button><button class="btn btn-light text-danger" title="Cancelar" aria-label="Cancelar produção" data-production-action="cancel" data-production-id="${UI.esc(row.ID)}"><span class="material-symbols-rounded">close</span></button></div>` : ''}
+        </article>`;
+      }).join('')}</div>`;
+
+      host.querySelectorAll('[data-production-action]').forEach(button => {
+        button.onclick = () => {
+          const row = byId(state.productions, button.dataset.productionId);
+          if (!row) return;
+          button.dataset.productionAction === 'finish' ? finishProduction(row) : cancelProduction(row);
+        };
+      });
+    }
+
+    async function load() {
+      document.getElementById('newProductionButton').classList.toggle('d-none', !App.canWrite('producoes'));
+      document.getElementById('productionsTable').innerHTML = UI.skeleton();
+      const [inputs, products, productions] = await Promise.all([
+        App.server('insumos.list'),
+        App.server('produtos.list'),
+        App.server('producoes.list')
+      ]);
+      state.inputs = inputs || [];
+      state.products = products || [];
+      state.productions = productions || [];
+      render();
+    }
+
+    function options(rows, selected = '') {
+      return '<option value="">Selecione...</option>' + rows.map(item => `<option value="${UI.esc(item.ID)}" ${String(item.ID) === String(selected) ? 'selected' : ''}>${UI.esc(item.NOME)}${item.UNIDADE ? ` (${UI.esc(item.UNIDADE)})` : ''}</option>`).join('');
+    }
+
+    function startProduction() {
+      const inputs = state.inputs.filter(item => item.STATUS !== 'Inativo');
+      const products = state.products.filter(item => item.STATUS !== 'Inativo');
+      const operators = App.state.lookups?.operators || [];
+      if (!inputs.length || !products.length) {
+        UI.toast('Cadastre ao menos um insumo e um produto produzido.', 'warning');
+        return;
+      }
+      UI.openModal({
+        title: 'Iniciar produção',
+        eyebrow: 'Etapa 1 de 2',
+        formId: 'productionStartForm',
+        submitText: 'Iniciar produção',
+        body: `<form id="productionStartForm" class="row g-3">
+          <div class="col-md-8"><label class="form-label">Insumo separado</label><select name="INSUMO_ID" class="form-select" required>${options(inputs)}</select></div>
+          <div class="col-md-4"><label class="form-label">Quantidade retirada</label><input name="QUANTIDADE_INSUMO" type="number" min="0.0001" step="0.0001" class="form-control" required></div>
+          <div class="col-md-8"><label class="form-label">Produto resultante</label><select name="PRODUTO_ID" class="form-select" required>${options(products)}</select></div>
+          <div class="col-md-4"><label class="form-label">Lote (opcional)</label><input name="LOTE" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Data da produção</label><input name="DATA_PRODUCAO" type="date" value="${UI.today()}" class="form-control" required></div>
+          <div class="col-md-6"><label class="form-label">Operador responsável</label><select name="OPERADOR_ID" class="form-select" required>${operators.map(item => `<option value="${UI.esc(item.id)}" ${String(item.id) === String(App.state.user.id) ? 'selected' : ''}>${UI.esc(item.name)}</option>`).join('')}</select></div>
+          <div class="col-12"><label class="form-label">Observações</label><textarea name="OBSERVACOES" class="form-control" rows="3"></textarea></div>
+          <div class="col-12"><div class="alert alert-info mb-0"><strong>Nesta etapa:</strong> informe quanto de insumo foi separado. A quantidade do produto final será registrada em unidades, pacotes, porções ou peso na finalização.</div></div>
+        </form>`,
+        onSubmit: async data => {
+          await App.server('producoes.start', data);
+          UI.toast('Produção iniciada.');
+          await load();
+        }
+      });
+    }
+
+    function finishProduction(row) {
+      const details = outputDetails(row);
+      const product = details.product;
+      const initialUnit = details.unit;
+      const unitOptionMarkup = unitOptions.map(unit => `<option value="${unit}" ${unit === initialUnit ? 'selected' : ''}>${unitName(unit, 2)} (${unit})</option>`).join('');
+      UI.openModal({
+        title: `Finalizar ${row.CODIGO}`,
+        eyebrow: 'Etapa 2 de 2',
+        formId: 'productionFinishForm',
+        submitText: 'Finalizar e movimentar estoque',
+        body: `<form id="productionFinishForm" class="row g-3">
+          <input type="hidden" name="ID" value="${UI.esc(row.ID)}">
+          <div class="col-12"><div class="production-result-summary"><strong>${UI.esc(row.INSUMO_NOME)}</strong><br><span>Foram separados ${UI.esc(row.CONSUMO_INSUMO)} para produzir ${UI.esc(row.PRODUTO_NOME)}.</span></div></div>
+          <div class="col-12"><div class="production-unit-row">
+            <div><label id="finishQuantityLabel" class="form-label">Quantidade produzida</label><input id="finishOutputQuantityV2" name="QUANTIDADE_PRODUZIDA" type="number" min="0.0001" step="1" class="form-control" required></div>
+            <div><label class="form-label">Unidade do produto final</label><select id="finishOutputUnitV2" name="UNIDADE_PRODUTO" class="form-select" required>${unitOptionMarkup}</select></div>
+          </div></div>
+          <div class="col-md-6"><label id="finishLossLabel" class="form-label">Perda do produto (opcional)</label><input name="QUANTIDADE_PERDIDA" type="number" min="0" step="1" value="0" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Categoria da perda</label><select name="CATEGORIA_PERDA" class="form-select"><option>Quebra</option><option>Erro</option><option>Contaminação</option><option selected>Sobras</option><option>Outros</option></select></div>
+          <div class="col-12"><div class="alert alert-info mb-0"><strong>Rendimento:</strong> <span id="finishYieldV2">informe a quantidade produzida</span></div></div>
+          <div class="col-12"><div class="production-cost-preview"><span><small>Custo médio dos insumos</small><strong>${UI.currency(row.CUSTO_ESTIMADO_INSUMOS || 0)}</strong></span><span><small id="finishCostLabelV2">Custo estimado por unidade</small><strong id="finishUnitCostV2">—</strong></span></div></div>
+          <div class="col-12"><label class="form-label">Observações</label><textarea name="OBSERVACOES" class="form-control" rows="3">${UI.esc(row.OBSERVACOES || '')}</textarea></div>
+          <div class="col-12"><div class="alert alert-warning mb-0">Ao finalizar, o insumo será baixado e o total produzido entrará no estoque do produto final.</div></div>
+        </form>`,
+        onSubmit: async data => {
+          const selectedUnit = normalize(data.UNIDADE_PRODUTO) || 'un';
+          if (product && normalize(product.UNIDADE) !== selectedUnit) {
+            await App.server('produtos.save', { ...product, UNIDADE: selectedUnit });
+          }
+          await App.server('producoes.finish', data);
+          UI.toast(`Produção finalizada: ${UI.number(data.QUANTIDADE_PRODUZIDA)} ${unitName(selectedUnit, data.QUANTIDADE_PRODUZIDA)}.`);
+          await load();
+        }
+      });
+
+      const quantityInput = document.getElementById('finishOutputQuantityV2');
+      const unitSelect = document.getElementById('finishOutputUnitV2');
+      const lossInput = document.querySelector('#productionFinishForm [name="QUANTIDADE_PERDIDA"]');
+      const updatePreview = () => {
+        const output = Number(quantityInput.value || 0);
+        const unit = normalize(unitSelect.value) || 'un';
+        const whole = discreteUnits.includes(unit);
+        quantityInput.step = whole ? '1' : '0.001';
+        lossInput.step = whole ? '1' : '0.001';
+        document.getElementById('finishQuantityLabel').textContent = `${unitName(unit, 2)[0].toUpperCase()}${unitName(unit, 2).slice(1)} produzidos`;
+        document.getElementById('finishLossLabel').textContent = `Perda do produto em ${unitName(unit, 2)} (opcional)`;
+        document.getElementById('finishCostLabelV2').textContent = `Custo estimado por ${unitName(unit, 1)}`;
+        document.getElementById('finishUnitCostV2').textContent = output > 0 ? UI.currency(Number(row.CUSTO_ESTIMADO_INSUMOS || 0) / output) : '—';
+
+        const inputKg = toKg(row.QTD_INSUMO, row.UNIDADE_INSUMO);
+        const directKg = toKg(output, unit);
+        const itemKg = toKg(details.weight, details.weightUnit);
+        const packedKg = directKg || (itemKg > 0 && whole ? output * itemKg : 0);
+        let text = 'informe a quantidade produzida';
+        if (output > 0) {
+          if (inputKg > 0 && whole) {
+            text = `${UI.number(output / inputKg)} ${unitName(unit)}/kg de insumo`;
+            if (packedKg > 0) text += ` · ${UI.number(packedKg)} kg produzidos · ${UI.number(packedKg / inputKg * 100)}% de aproveitamento`;
+          } else if (inputKg > 0 && packedKg > 0) {
+            text = `${UI.number(packedKg)} kg produzidos · ${UI.number(packedKg / inputKg * 100)}% de aproveitamento`;
+          } else {
+            text = `${UI.number(output)} ${unitName(unit, output)} produzidos`;
+          }
+        }
+        document.getElementById('finishYieldV2').textContent = text;
+      };
+      quantityInput.addEventListener('input', updatePreview);
+      unitSelect.addEventListener('change', updatePreview);
+      updatePreview();
+    }
+
+    async function cancelProduction(row) {
+      if (!await UI.confirm('Cancelar produção', `Deseja cancelar ${row.CODIGO}? Nenhum estoque será movimentado.`, 'Cancelar', true)) return;
+      await App.server('producoes.cancel', { id: row.ID, justification: 'Cancelada pelo painel de produção.' });
+      UI.toast('Produção cancelada.', 'warning');
+      await load();
+    }
+
+    const startButton = document.getElementById('newProductionButton');
+    if (startButton) startButton.onclick = startProduction;
+    window.ModuleLoaders.producao = load;
+  })();
+</script>
