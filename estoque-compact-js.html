@@ -1,0 +1,101 @@
+<script>
+(() => {
+  'use strict';
+
+  const fieldWrap = (form, name) => form.querySelector(`[name="${name}"]`)?.closest('[class*="col-"]');
+
+  function enhanceStockEntry() {
+    const form = document.getElementById('modalForm');
+    if (!form || form.dataset.stockEntrySimple === '1') return;
+
+    const type = form.querySelector('[name="TIPO_ESTOQUE"]')?.value;
+    const item = form.querySelector('[name="ITEM_ID"]');
+    const quantity = form.querySelector('[name="QUANTIDADE"]');
+    const cost = form.querySelector('[name="CUSTO_UNITARIO"]');
+    const date = form.querySelector('[name="DATA_ENTRADA"]');
+    if (type !== 'INSUMO' || !item || !quantity || !cost || !date) return;
+
+    form.dataset.stockEntrySimple = '1';
+    form.classList.add('stock-entry-simple');
+    const dialog = form.closest('.modal-dialog');
+    dialog?.classList.add('stock-entry-dialog');
+
+    const itemWrap = fieldWrap(form, 'ITEM_ID');
+    const quantityWrap = fieldWrap(form, 'QUANTIDADE');
+    const costWrap = fieldWrap(form, 'CUSTO_UNITARIO');
+    const dateWrap = fieldWrap(form, 'DATA_ENTRADA');
+    const lotWrap = fieldWrap(form, 'LOTE');
+    const observationWrap = form.querySelector('[name="OBSERVACOES"]')?.closest('[class*="col-"]');
+
+    if (itemWrap) itemWrap.className = 'col-12';
+    if (quantityWrap) quantityWrap.className = 'col-md-6';
+    if (costWrap) costWrap.className = 'col-md-6';
+
+    const intro = document.createElement('div');
+    intro.className = 'col-12';
+    intro.innerHTML = `
+      <div class="stock-entry-intro">
+        <span class="material-symbols-rounded">inventory_2</span>
+        <div><strong>Entrada rápida</strong><small>Informe o item recebido, a quantidade e o valor por unidade.</small></div>
+      </div>`;
+
+    const total = document.createElement('div');
+    total.className = 'col-12';
+    total.innerHTML = `
+      <div class="stock-entry-total">
+        <div><small>Valor total desta entrada</small><strong id="stockEntryTotalValue">R$ 0,00</strong></div>
+        <span class="material-symbols-rounded">payments</span>
+      </div>`;
+
+    const more = document.createElement('details');
+    more.className = 'stock-entry-more col-12';
+    more.innerHTML = '<summary><span class="material-symbols-rounded">tune</span>Mais opções</summary><div class="stock-entry-more-body"><div class="row g-3"></div></div>';
+    const moreRow = more.querySelector('.row');
+    [dateWrap, lotWrap, observationWrap].filter(Boolean).forEach(wrapper => moreRow.appendChild(wrapper));
+    if (observationWrap) {
+      observationWrap.className = 'col-12';
+      const textarea = observationWrap.querySelector('textarea');
+      if (textarea) textarea.rows = 2;
+    }
+    if (dateWrap) dateWrap.className = 'col-md-6';
+    if (lotWrap) lotWrap.className = 'col-md-6';
+
+    form.prepend(intro);
+    [itemWrap, quantityWrap, costWrap].filter(Boolean).forEach(wrapper => form.appendChild(wrapper));
+    form.append(total, more);
+
+    const updateTotal = () => {
+      const q = Number(String(quantity.value || '').replace(',', '.')) || 0;
+      const c = Number(String(cost.value || '').replace(',', '.')) || 0;
+      const target = document.getElementById('stockEntryTotalValue');
+      if (target) target.textContent = UI.currency(q * c);
+    };
+
+    quantity.addEventListener('input', updateTotal);
+    cost.addEventListener('input', updateTotal);
+    item.addEventListener('change', () => setTimeout(updateTotal, 0));
+    updateTotal();
+  }
+
+  const observer = new MutationObserver(mutations => {
+    const relevant = mutations.some(mutation =>
+      [...mutation.addedNodes].some(node =>
+        node.nodeType === 1 && (
+          node.matches?.('#modalForm') ||
+          node.querySelector?.('#modalForm')
+        )
+      )
+    );
+    if (relevant) requestAnimationFrame(enhanceStockEntry);
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+  document.getElementById('appModal')?.addEventListener('shown.bs.modal', () => requestAnimationFrame(enhanceStockEntry));
+  document.addEventListener('click', event => {
+    if (event.target.closest('#stockEntryButton,[data-stock-action="entry"]')) setTimeout(enhanceStockEntry, 80);
+  });
+
+  enhanceStockEntry();
+  window.StockEntryCompact = { enhance: enhanceStockEntry };
+})();
+</script>
