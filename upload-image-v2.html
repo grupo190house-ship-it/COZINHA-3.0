@@ -1,0 +1,78 @@
+<script>
+(() => {
+  'use strict';
+
+  if (typeof UI === 'undefined' || typeof App === 'undefined') return;
+
+  const MAX_FILE_BYTES = 5 * 1024 * 1024;
+  const MAX_SIDE = 1600;
+  const JPEG_QUALITY = 0.84;
+
+  const readDataUrl = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Não foi possível ler a imagem selecionada.'));
+    reader.readAsDataURL(file);
+  });
+
+  const loadImage = file => new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Não foi possível preparar a imagem. Use JPG, PNG ou WEBP.'));
+    };
+    image.src = url;
+  });
+
+  async function prepare(file) {
+    if (!file) return null;
+    if (file.size > MAX_FILE_BYTES) throw new Error('A imagem deve ter no máximo 5 MB.');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      throw new Error('Use uma imagem JPG, PNG ou WEBP.');
+    }
+
+    const image = await loadImage(file);
+    const scale = Math.min(1, MAX_SIDE / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height));
+    const width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
+    const height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
+
+    if (scale === 1 && file.size <= 900 * 1024 && file.type === 'image/jpeg') {
+      return { name: file.name, mimeType: file.type, base64: await readDataUrl(file) };
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { alpha: false });
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    const baseName = String(file.name || 'foto').replace(/\.[^.]+$/, '') || 'foto';
+    return {
+      name: `${baseName}.jpg`,
+      mimeType: 'image/jpeg',
+      base64: canvas.toDataURL('image/jpeg', JPEG_QUALITY)
+    };
+  }
+
+  UI.uploadImageDetails = async input => {
+    const file = input?.files?.[0];
+    if (!file) return null;
+    const payload = await prepare(file);
+    return App.server('media.upload', payload);
+  };
+
+  UI.uploadImage = async input => {
+    const result = await UI.uploadImageDetails(input);
+    return result?.url || '';
+  };
+
+  window.ImageUploadV2 = { prepare };
+})();
+</script>
