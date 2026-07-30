@@ -1,0 +1,11 @@
+<script>
+/*
+ * Cria uma variável global real para navegadores que não transformam
+ * automaticamente window.google em identificador global, como algumas
+ * versões do Safari/WebView do iPhone.
+ */
+if (!window.google || !window.google.script || !window.google.script.run) {
+  throw new Error('A ponte de dados não foi inicializada. Atualize a página.');
+}
+var google = window.google;
+</script>
