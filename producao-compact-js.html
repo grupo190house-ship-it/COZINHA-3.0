@@ -1,0 +1,96 @@
+<script>
+(() => {
+  'use strict';
+
+  const text = (node, selector) => node?.querySelector(selector)?.textContent?.trim() || '';
+
+  function compactCard(card) {
+    if (!card || card.dataset.compactProduction === '1') return;
+
+    const flow = card.querySelector('.production-flow');
+    const metrics = card.querySelector('.production-card-metrics');
+    const flowItems = flow ? [...flow.querySelectorAll('.production-flow-item')] : [];
+    if (flowItems.length < 2) return;
+
+    card.dataset.compactProduction = '1';
+    card.classList.add('production-card-compact');
+
+    const input = flowItems[0];
+    const product = flowItems[1];
+    const summary = document.createElement('div');
+    summary.className = 'production-compact-summary';
+    summary.innerHTML = `
+      <div class="production-compact-product">
+        <small>Produto final</small>
+        <strong>${UI.esc(text(product, 'strong') || 'Produto')}</strong>
+        <span>${UI.esc(text(product, 'span') || 'Aguardando finalização')}</span>
+      </div>
+      <div class="production-compact-input">
+        <small>Insumo utilizado</small>
+        <strong>${UI.esc(text(input, 'strong') || '—')}</strong>
+        <span>${UI.esc(text(input, 'span') || '—')}</span>
+      </div>`;
+
+    flow.replaceWith(summary);
+
+    if (metrics) {
+      const details = document.createElement('details');
+      details.className = 'production-compact-details';
+      details.innerHTML = '<summary><span class="material-symbols-rounded">analytics</span>Rendimento e custos</summary><div class="production-compact-details-body"></div>';
+      details.querySelector('.production-compact-details-body').appendChild(metrics);
+      summary.insertAdjacentElement('afterend', details);
+    }
+  }
+
+  function compactCards(root = document) {
+    root.querySelectorAll?.('#view-producao .production-card').forEach(compactCard);
+  }
+
+  function compactProductionModal() {
+    const start = document.getElementById('productionStartForm');
+    const finish = document.getElementById('productionFinishForm');
+
+    if (start && start.dataset.compactModal !== '1') {
+      start.dataset.compactModal = '1';
+      const introText = start.querySelector('.simple-form-intro span');
+      if (introText) introText.textContent = 'Selecione o produto, o insumo e quanto foi separado.';
+      const modalTitle = document.getElementById('modalTitle');
+      if (modalTitle) modalTitle.textContent = 'Iniciar produção';
+    }
+
+    if (finish && finish.dataset.compactModal !== '1') {
+      finish.dataset.compactModal = '1';
+      const introText = finish.querySelector('.simple-form-intro span');
+      if (introText) introText.textContent = 'Informe quanto ficou pronto. O sistema calcula o restante.';
+    }
+  }
+
+  function enhance() {
+    compactCards();
+    compactProductionModal();
+  }
+
+  const observer = new MutationObserver(mutations => {
+    const relevant = mutations.some(mutation =>
+      [...mutation.addedNodes].some(node =>
+        node.nodeType === 1 && (
+          node.matches?.('.production-card,#productionStartForm,#productionFinishForm') ||
+          node.querySelector?.('.production-card,#productionStartForm,#productionFinishForm')
+        )
+      )
+    );
+    if (relevant) requestAnimationFrame(enhance);
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+  document.getElementById('appModal')?.addEventListener('shown.bs.modal', () => requestAnimationFrame(compactProductionModal));
+  document.addEventListener('click', event => {
+    if (event.target.closest('[data-module="producao"],[data-navigate="producao"],#newProductionButton,[data-production-action]')) {
+      setTimeout(enhance, 80);
+    }
+  });
+
+  enhance();
+  window.ProductionCompact = { enhance, compactCards, compactProductionModal };
+})();
+</script>
