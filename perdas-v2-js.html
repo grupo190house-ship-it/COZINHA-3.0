@@ -1,0 +1,241 @@
+<script>
+  (() => {
+    'use strict';
+
+    const state = { inputs: [], products: [], productions: [], losses: [], autoCost: 0, costSource: '' };
+    const normalize = value => String(value || '').trim().toLowerCase();
+    const number = value => Number(String(value ?? '').replace(',', '.')) || 0;
+    const byId = (rows, id) => rows.find(row => String(row.ID) === String(id));
+    const now = () => new Date().toISOString();
+
+    function latestProductionCost(productId) {
+      const row = state.productions
+        .filter(item => String(item.PRODUTO_ID) === String(productId) && item.STATUS === 'Finalizada' && number(item.CUSTO_UNITARIO_PRODUZIDO) > 0)
+        .sort((a, b) => String(b.HORA_FIM || b.HORA_INICIO || '').localeCompare(String(a.HORA_FIM || a.HORA_INICIO || '')))[0];
+      return row ? { value: number(row.CUSTO_UNITARIO_PRODUZIDO), source: `Última produção ${row.CODIGO || ''}`.trim() } : null;
+    }
+
+    function itemCost(type, itemId) {
+      if (type === 'INSUMO') {
+        const item = byId(state.inputs, itemId);
+        return item ? {
+          item,
+          unit: item.UNIDADE || 'un',
+          value: number(item.PRECO_MEDIO || item.PRECO_ATUAL),
+          source: number(item.PRECO_MEDIO) > 0 ? 'Custo médio do insumo' : 'Valor atual do insumo'
+        } : null;
+      }
+      if (type === 'PRODUTO') {
+        const item = byId(state.products, itemId);
+        if (!item) return null;
+        const production = latestProductionCost(itemId);
+        return {
+          item,
+          unit: item.UNIDADE || 'un',
+          value: production?.value || number(item.CUSTO),
+          source: production?.source || (number(item.CUSTO) > 0 ? 'Custo cadastrado do produto' : 'Custo ainda não calculado')
+        };
+      }
+      return null;
+    }
+
+    function itemOptions(type) {
+      const rows = type === 'PRODUTO' ? state.products : state.inputs;
+      return '<option value="">Selecione...</option>' + rows
+        .filter(item => item.STATUS !== 'Inativo')
+        .map(item => `<option value="${UI.esc(item.ID)}">${UI.esc(item.NOME)}${item.UNIDADE ? ` (${UI.esc(item.UNIDADE)})` : ''}</option>`)
+        .join('');
+    }
+
+    function renderLosses() {
+      UI.renderTable('lossesTable', [...state.losses].sort((a, b) => String(b.DATA_HORA || '').localeCompare(String(a.DATA_HORA || ''))), [
+        { key: 'DATA_HORA', label: 'Data', render: UI.date },
+        { key: 'ITEM_NOME', label: 'Item', render: value => `<strong>${UI.esc(value || '—')}</strong>` },
+        { key: 'TIPO_ESTOQUE', label: 'Origem', render: value => UI.badge(value === 'AVULSO' ? 'Item avulso' : value) },
+        { key: 'QUANTIDADE', label: 'Quantidade', render: (value, row) => `${UI.number(value)} ${UI.esc(row.UNIDADE || '')}` },
+        { key: 'CUSTO_UNITARIO', label: 'Valor unitário', render: (value, row) => `${UI.currency(value)}/${UI.esc(row.UNIDADE || 'un')}` },
+        { key: 'CUSTO', label: 'Valor da perda', render: UI.currency },
+        { key: 'CATEGORIA', label: 'Categoria', render: UI.badge },
+        { key: 'MOTIVO', label: 'Motivo' }
+      ], { exportName: 'perdas', emptyMessage: 'Nenhuma perda registrada.' });
+    }
+
+    async function load() {
+      document.getElementById('newLossButton').classList.toggle('d-none', !App.canWrite('perdas'));
+      document.getElementById('lossesTable').innerHTML = UI.skeleton();
+      const [inputs, products, productions, losses] = await Promise.all([
+        App.server('insumos.list'),
+        App.server('produtos.list'),
+        App.server('producoes.list'),
+        App.server('perdas.list')
+      ]);
+      state.inputs = inputs || [];
+      state.products = products || [];
+      state.productions = productions || [];
+      state.losses = losses || [];
+      renderLosses();
+    }
+
+    async function saveLoss(data) {
+      const type = data.TIPO_ITEM;
+      const quantity = number(data.QUANTIDADE);
+      const unitCost = number(data.CUSTO_UNITARIO);
+      if (quantity <= 0) throw new Error('Informe uma quantidade válida.');
+      if (unitCost < 0) throw new Error('Informe um valor unitário válido.');
+
+      let itemId = '';
+      let itemName = '';
+      let unit = '';
+      let stockType = type;
+
+      if (type === 'AVULSO') {
+        itemName = String(data.ITEM_AVULSO_NOME || '').trim();
+        unit = String(data.ITEM_AVULSO_UNIDADE || '').trim();
+        stockType = 'AVULSO';
+        if (!itemName) throw new Error('Informe o nome do item da cozinha.');
+        if (!unit) throw new Error('Informe a unidade do item.');
+      } else {
+        const rows = type === 'PRODUTO' ? state.products : state.inputs;
+        const item = byId(rows, data.ITEM_ID);
+        if (!item) throw new Error('Selecione um item.');
+        itemId = item.ID;
+        itemName = item.NOME;
+        unit = item.UNIDADE || 'un';
+        await App.server('estoque.exit', {
+          TIPO_ESTOQUE: type,
+          ITEM_ID: item.ID,
+          QUANTIDADE: quantity,
+          TIPO: 'PERDA',
+          JUSTIFICATIVA: data.MOTIVO
+        });
+      }
+
+      const photo = await UI.uploadImage(document.getElementById('lossV2Photo'));
+      const db = window.FirebaseBridge?.db;
+      const root = window.FirebaseBridge?.root;
+      if (!db || !root) throw new Error('Banco de dados indisponível. Atualize a página e tente novamente.');
+
+      const lossRef = db.ref(`${root}/perdas`).push();
+      const manualCost = Math.abs(unitCost - state.autoCost) > 0.00001;
+      const record = {
+        ID: lossRef.key,
+        DATA_HORA: now(),
+        TIPO_ESTOQUE: stockType,
+        ITEM_ID: itemId,
+        ITEM_NOME: itemName,
+        UNIDADE: unit,
+        QUANTIDADE: quantity,
+        CUSTO_UNITARIO: unitCost,
+        CUSTO: quantity * unitCost,
+        ORIGEM_CUSTO: type === 'AVULSO' || manualCost ? 'Informado manualmente' : state.costSource,
+        CATEGORIA: data.CATEGORIA || 'Outros',
+        MOTIVO: data.MOTIVO || '',
+        OPERADOR_ID: data.OPERADOR_ID || '',
+        SUPERVISOR_ID: data.SUPERVISOR_ID || '',
+        FOTO: photo || '',
+        ITEM_AVULSO: type === 'AVULSO',
+        REGISTRADO_POR_ID: App.state.user?.id || '',
+        REGISTRADO_POR_NOME: App.state.user?.name || ''
+      };
+      await lossRef.set(record);
+
+      const auditRef = db.ref(`${root}/auditoria`).push();
+      await auditRef.set({
+        ID: auditRef.key,
+        ACAO: 'Registrar perda',
+        USUARIO_ID: App.state.user?.id || '',
+        USUARIO_NOME: App.state.user?.name || '',
+        TELA: 'perdas',
+        REGISTRO_TIPO: 'perdas',
+        REGISTRO_ID: record.ID,
+        OBSERVACAO: `${itemName}: ${quantity} ${unit} · ${UI.currency(record.CUSTO)}`,
+        DATA_HORA: now()
+      });
+      return record;
+    }
+
+    function openForm() {
+      const operators = App.state.lookups?.operators || [];
+      const operatorOptions = '<option value="">Selecione...</option>' + operators.map(item => `<option value="${UI.esc(item.id)}">${UI.esc(item.name)}</option>`).join('');
+      UI.openModal({
+        title: 'Registrar perda',
+        eyebrow: 'Baixa e custo real',
+        formId: 'lossV2Form',
+        submitText: 'Registrar perda',
+        body: `<form id="lossV2Form" class="row g-3">
+          <div class="col-md-6"><label class="form-label">Origem do item</label><select id="lossV2Type" name="TIPO_ITEM" class="form-select" required><option value="INSUMO">Insumo do estoque</option><option value="PRODUTO">Produto produzido</option><option value="AVULSO">Item avulso da cozinha</option></select></div>
+          <div id="lossV2ItemWrap" class="col-md-6"><label class="form-label">Item</label><select id="lossV2Item" name="ITEM_ID" class="form-select" required>${itemOptions('INSUMO')}</select></div>
+          <div id="lossV2CustomWrap" class="col-12 d-none"><div class="row g-3">
+            <div class="col-md-7"><label class="form-label">Nome do item</label><input name="ITEM_AVULSO_NOME" class="form-control" placeholder="Ex.: prato quebrado, pano, utensílio..."></div>
+            <div class="col-md-5"><label class="form-label">Unidade</label><input name="ITEM_AVULSO_UNIDADE" class="form-control" placeholder="un, kg, pct..."></div>
+          </div></div>
+          <div class="col-md-4"><label class="form-label">Quantidade</label><input id="lossV2Quantity" name="QUANTIDADE" type="number" min="0.001" step="0.001" class="form-control" required></div>
+          <div class="col-md-4"><label class="form-label">Valor por unidade (R$)</label><input id="lossV2UnitCost" name="CUSTO_UNITARIO" type="number" min="0" step="0.01" class="form-control" required></div>
+          <div class="col-md-4"><label class="form-label">Categoria</label><select name="CATEGORIA" class="form-select"><option>Quebra</option><option>Erro</option><option>Contaminação</option><option selected>Sobras</option><option>Vencimento</option><option>Outros</option></select></div>
+          <div class="col-12"><div id="lossV2CostCard" class="loss-v2-cost-card"><span class="material-symbols-rounded">payments</span><div><small id="lossV2CostSource">Selecione um item</small><strong id="lossV2Total">R$ 0,00</strong><small id="lossV2Reference">Informe a quantidade para calcular a perda</small></div></div></div>
+          <div class="col-md-6"><label class="form-label">Operador</label><select name="OPERADOR_ID" class="form-select">${operatorOptions}</select></div>
+          <div class="col-md-6"><label class="form-label">Supervisor</label><select name="SUPERVISOR_ID" class="form-select">${operatorOptions}</select></div>
+          <div class="col-12"><label class="form-label">Motivo</label><textarea name="MOTIVO" class="form-control" rows="3" required></textarea></div>
+          <div class="col-12"><label class="form-label">Foto da evidência</label><input id="lossV2Photo" type="file" accept="image/jpeg,image/png,image/webp" class="form-control"></div>
+        </form>`,
+        onSubmit: async data => {
+          const saved = await saveLoss(data);
+          UI.toast(`Perda registrada: ${UI.currency(saved.CUSTO)}.`);
+          await load();
+        }
+      });
+
+      const typeSelect = document.getElementById('lossV2Type');
+      const itemSelect = document.getElementById('lossV2Item');
+      const itemWrap = document.getElementById('lossV2ItemWrap');
+      const customWrap = document.getElementById('lossV2CustomWrap');
+      const quantityInput = document.getElementById('lossV2Quantity');
+      const costInput = document.getElementById('lossV2UnitCost');
+
+      const updateTotal = () => {
+        const quantity = number(quantityInput.value);
+        const cost = number(costInput.value);
+        document.getElementById('lossV2Total').textContent = UI.currency(quantity * cost);
+        document.getElementById('lossV2Reference').textContent = `${UI.currency(cost)} por unidade informada`;
+      };
+
+      const updateItemCost = () => {
+        const type = typeSelect.value;
+        const custom = type === 'AVULSO';
+        itemWrap.classList.toggle('d-none', custom);
+        customWrap.classList.toggle('d-none', !custom);
+        itemSelect.required = !custom;
+        document.querySelector('#lossV2CustomWrap [name="ITEM_AVULSO_NOME"]').required = custom;
+        document.querySelector('#lossV2CustomWrap [name="ITEM_AVULSO_UNIDADE"]').required = custom;
+        if (custom) {
+          state.autoCost = number(costInput.value);
+          state.costSource = 'Informado manualmente';
+          document.getElementById('lossV2CostSource').textContent = 'Informe o valor unitário do item avulso';
+          updateTotal();
+          return;
+        }
+        const info = itemCost(type, itemSelect.value);
+        state.autoCost = info?.value || 0;
+        state.costSource = info?.source || '';
+        costInput.value = info ? info.value.toFixed(2) : '';
+        document.getElementById('lossV2CostSource').textContent = info?.source || 'Selecione um item';
+        document.getElementById('lossV2Reference').textContent = info ? `${UI.currency(info.value)} por ${info.unit}` : 'Informe a quantidade para calcular a perda';
+        updateTotal();
+      };
+
+      typeSelect.onchange = () => {
+        if (typeSelect.value !== 'AVULSO') itemSelect.innerHTML = itemOptions(typeSelect.value);
+        costInput.value = '';
+        updateItemCost();
+      };
+      itemSelect.onchange = updateItemCost;
+      quantityInput.oninput = updateTotal;
+      costInput.oninput = updateTotal;
+      updateItemCost();
+    }
+
+    const button = document.getElementById('newLossButton');
+    if (button) button.onclick = openForm;
+    window.ModuleLoaders.perdas = load;
+  })();
+</script>
