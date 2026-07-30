@@ -1,0 +1,206 @@
+<style id="mobile-polish">
+  /* Avisos sempre sólidos e legíveis */
+  #toastHost {
+    z-index: 2000;
+    width: min(420px, calc(100vw - 24px));
+  }
+  #toastHost .toast {
+    opacity: 1 !important;
+    width: 100%;
+    border: 1px solid #dcdfe4 !important;
+    border-radius: 10px;
+    background: #ffffff !important;
+    color: #172b4d !important;
+    box-shadow: 0 10px 28px rgba(9,30,66,.22);
+  }
+  #toastHost .toast-body { min-height: 52px; padding: 12px 14px; font-weight: 650; }
+  #toastHost .btn-close { flex: 0 0 auto; opacity: .68; }
+
+  /* Cartões com aparência mais leve */
+  .metric-card {
+    border: 0 !important;
+    border-left: 4px solid var(--metric-color, #0c66e4) !important;
+    background: #ffffff;
+    box-shadow: 0 2px 7px rgba(9,30,66,.12), 0 0 1px rgba(9,30,66,.18);
+  }
+  .metric-card:hover { transform: none; }
+  .metric-icon {
+    background: color-mix(in srgb, var(--metric-color, #0c66e4) 13%, #ffffff);
+  }
+  .operational-grid > .card-surface,
+  .task-summary-card,
+  .stock-item-card,
+  .purchase-card {
+    border: 0;
+    box-shadow: 0 2px 8px rgba(9,30,66,.12), 0 0 1px rgba(9,30,66,.16);
+  }
+
+  /* Login limpo, com contraste próprio independente do tema salvo */
+  .login-screen {
+    background: linear-gradient(145deg, #0c66e4 0%, #0052cc 56%, #172b4d 100%) !important;
+  }
+  .login-panel { background: transparent !important; }
+  .login-form-wrap,
+  [data-theme="dark"] .login-form-wrap {
+    background: #ffffff !important;
+    color: #172b4d !important;
+  }
+  .login-form-wrap h1,
+  [data-theme="dark"] .login-form-wrap h1,
+  .login-form-wrap strong { color: #172b4d !important; }
+  .login-form-wrap .text-secondary,
+  .login-form-wrap .form-label,
+  .login-form-wrap .form-check-label,
+  .login-form-wrap .login-version { color: #626f86 !important; }
+  .login-form-wrap .form-control,
+  [data-theme="dark"] .login-form-wrap .form-control {
+    background: #ffffff !important;
+    border-color: #b6c2cf !important;
+    color: #172b4d !important;
+  }
+  .login-form-wrap .form-control::placeholder { color: #7a869a !important; }
+  .login-form-wrap .input-icon > .material-symbols-rounded,
+  .login-form-wrap .password-toggle { color: #626f86 !important; }
+
+  [data-theme="dark"] #toastHost .toast {
+    border-color: #53606b !important;
+    background: #2b3137 !important;
+    color: #ffffff !important;
+  }
+  [data-theme="dark"] .metric-card,
+  [data-theme="dark"] .operational-grid > .card-surface,
+  [data-theme="dark"] .task-summary-card,
+  [data-theme="dark"] .stock-item-card,
+  [data-theme="dark"] .purchase-card {
+    background: #252b30;
+    color: #f1f3f5;
+  }
+  [data-theme="dark"] .metric-label { color: #aeb7c2; }
+  [data-theme="dark"] .metric-value,
+  [data-theme="dark"] .panel-title { color: #f1f3f5; }
+  [data-theme="dark"] .metric-icon {
+    background: color-mix(in srgb, var(--metric-color, #579dff) 18%, #252b30);
+  }
+
+  @media (max-width: 900px) {
+    /* Aviso não cobre mais o título */
+    #toastHost {
+      top: auto !important;
+      right: 12px !important;
+      bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+      left: 12px !important;
+      width: auto;
+      padding: 0 !important;
+    }
+
+    /* Login ocupa a tela corretamente e sem propaganda no meio */
+    .login-screen { display: block; min-height: 100dvh; }
+    .login-panel {
+      min-height: 100dvh;
+      padding: max(18px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+    }
+    .login-form-wrap {
+      width: min(430px, 100%);
+      margin: auto;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 20px 55px rgba(9,30,66,.35);
+    }
+    .login-mobile-intro { display: none !important; }
+    .login-brand-row { padding-bottom: 14px; margin-bottom: 20px; }
+    .login-form-wrap h1 { margin: 0 0 5px; font-size: 27px; line-height: 1.1; }
+    .login-form-wrap #loginView > p { margin-bottom: 20px !important; }
+    #loginForm .form-control { min-height: 50px; border-width: 2px; }
+    #loginForm > .btn-primary { min-height: 50px; font-size: 16px; }
+    .login-version { text-align: center; }
+
+    /* Dashboard compacto */
+    #view-dashboard .operational-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 42px;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 10px;
+      padding: 0 2px;
+    }
+    #view-dashboard .operational-head > div { min-width: 0; }
+    #view-dashboard .operational-head .eyebrow { display: none; }
+    #view-dashboard .operational-head h1 { margin: 0; font-size: 21px; line-height: 1.1; }
+    #view-dashboard .operational-head p {
+      margin: 3px 0 0;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #refreshDashboard {
+      width: 42px !important;
+      min-width: 42px;
+      min-height: 42px;
+      padding: 0 !important;
+      font-size: 0;
+      border-radius: 10px;
+    }
+    #refreshDashboard .material-symbols-rounded { font-size: 21px; }
+
+    /* Métricas mais bonitas e fáceis de ler */
+    .metric-grid,
+    .metric-grid[style] { gap: 8px !important; }
+    .metric-card {
+      min-height: 98px !important;
+      padding: 11px !important;
+      border-left-width: 4px !important;
+      border-radius: 11px !important;
+    }
+    .metric-icon { width: 31px; height: 31px; border-radius: 9px; }
+    .metric-label { margin: 7px 0 2px; font-size: 10px; line-height: 1.2; }
+    .metric-value { font-size: 23px; line-height: 1.05; }
+    .operational-grid { gap: 10px; }
+    .operational-grid > .card-surface { border-radius: 12px; }
+
+    /* Quadro de tarefas cresce somente quando houver conteúdo */
+    .task-board {
+      min-height: 0 !important;
+      padding: 8px !important;
+      border-radius: 12px;
+    }
+    .task-board > .task-column.mobile-active { min-height: 0; }
+    .task-column { border-radius: 10px; }
+    .task-column-list {
+      min-height: 0 !important;
+      max-height: none !important;
+      padding: 7px !important;
+    }
+    .task-column-empty {
+      min-height: 130px !important;
+      padding: 22px 12px !important;
+    }
+    .task-column-empty .material-symbols-rounded { font-size: 31px; }
+    .task-toolbar { box-shadow: 0 2px 7px rgba(9,30,66,.12); }
+
+    /* Navegação inferior com contraste */
+    .mobile-bottom-nav { min-height: 64px; }
+    .mobile-nav-link { color: #667085; }
+    .mobile-nav-link.active { background: #e9f2ff; color: #0c66e4; }
+    [data-theme="dark"] .mobile-nav-link { color: #aeb7c2; }
+    [data-theme="dark"] .mobile-nav-link.active { background: #1b477f; color: #8fbcff; }
+  }
+
+  @media (max-width: 560px) {
+    .page-content {
+      padding-top: 12px !important;
+      padding-inline: 10px !important;
+    }
+    .login-form-wrap { padding: 21px; }
+    .login-brand-row .brand-mark { width: 40px; height: 40px; }
+    .login-form-wrap h1 { font-size: 25px; }
+    .metric-card { min-height: 94px !important; }
+    .operation-row { border: 0; box-shadow: 0 1px 4px rgba(9,30,66,.1); }
+  }
+</style>
