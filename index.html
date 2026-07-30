@@ -13,7 +13,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js"></script>
 </head>
 <body>
@@ -27,8 +26,11 @@
   <script>
     (() => {
       'use strict';
+      const ASSET_VERSION = '20260729-mobile-2';
       const fetchText = async file => {
-        const response = await fetch(new URL(file, document.baseURI), { cache: 'no-store' });
+        const url = new URL(file, document.baseURI);
+        url.searchParams.set('v', ASSET_VERSION);
+        const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) throw new Error(`Não foi possível carregar ${file} (${response.status}).`);
         return response.text();
       };
@@ -50,8 +52,13 @@
         document.body.innerHTML = `<main style="min-height:100vh;display:grid;place-items:center;padding:24px;font-family:Inter,system-ui,sans-serif;background:linear-gradient(145deg,#0c66e4,#0052cc 60%,#172b4d)"><section style="width:min(560px,100%);padding:32px;border-radius:12px;background:#fff;box-shadow:0 18px 55px rgba(9,30,66,.35);text-align:center"><span class="material-symbols-rounded" style="font-size:46px;color:#ca3521">error</span><h1 style="font-size:23px;margin-top:12px;color:#172b4d">Erro ao abrir o quadro</h1><p style="color:#626f86">${String(error?.message || error)}</p><button class="btn btn-primary" onclick="location.reload()">Tentar novamente</button></section></main>`;
       };
       async function boot() {
-        const [styles, theme, trelloTheme] = await Promise.all([fetchText('styles.html'), fetchText('theme.html'), fetchText('trello-theme.html')]);
-        document.head.insertAdjacentHTML('beforeend', styles + theme + trelloTheme + '<style>.firebase-status{position:fixed;right:14px;bottom:72px;z-index:1085;padding:7px 11px;border-radius:999px;background:rgba(16,24,40,.88);color:#fff;font:600 11px Inter,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.18);pointer-events:none}.firebase-status::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#12b76a}@media(min-width:901px){.firebase-status{bottom:14px}}</style>');
+        const [styles, theme, trelloTheme, mobilePolish] = await Promise.all([
+          fetchText('styles.html'),
+          fetchText('theme.html'),
+          fetchText('trello-theme.html'),
+          fetchText('mobile-polish.html')
+        ]);
+        document.head.insertAdjacentHTML('beforeend', styles + theme + trelloTheme + mobilePolish + '<style>.firebase-status{position:fixed;right:14px;bottom:72px;z-index:1085;padding:7px 11px;border-radius:999px;background:rgba(16,24,40,.88);color:#fff;font:600 11px Inter,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.18);pointer-events:none}.firebase-status::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#12b76a}@media(min-width:901px){.firebase-status{bottom:14px}}</style>');
         document.body.innerHTML = `
           <div id="bootLoader" class="boot-loader"><div class="brand-mark"><span class="material-symbols-rounded">view_kanban</span></div><div class="spinner-border text-primary" role="status"></div><span>Organizando seu quadro...</span></div>
           <div id="loginMount"></div>
