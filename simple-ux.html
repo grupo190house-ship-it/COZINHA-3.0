@@ -1,0 +1,248 @@
+<script>
+(() => {
+  'use strict';
+
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const fieldWrap = (form, name) => form.querySelector(`[name="${name}"]`)?.closest('[class*="col-"]');
+
+  function intro(icon, title, text) {
+    const box = document.createElement('div');
+    box.className = 'col-12';
+    box.innerHTML = `<div class="simple-form-intro"><span class="material-symbols-rounded">${icon}</span><div><strong>${UI.esc(title)}</strong><span>${UI.esc(text)}</span></div></div>`;
+    return box;
+  }
+
+  function detailsBlock(title, icon = 'tune') {
+    const details = document.createElement('details');
+    details.className = 'simple-more col-12';
+    details.innerHTML = `<summary><span class="material-symbols-rounded">${icon}</span>${UI.esc(title)}</summary><div class="simple-more-body"><div class="row g-3"></div></div>`;
+    return details;
+  }
+
+  function moveToDetails(form, names, title, icon = 'tune') {
+    const wrappers = names.map(name => fieldWrap(form, name)).filter(Boolean);
+    if (!wrappers.length) return null;
+    const details = detailsBlock(title, icon);
+    const body = details.querySelector('.row');
+    wrappers.forEach(wrapper => body.appendChild(wrapper));
+    form.appendChild(details);
+    return details;
+  }
+
+  function setColumn(form, name, className) {
+    const wrapper = fieldWrap(form, name);
+    if (wrapper) wrapper.className = className;
+    return wrapper;
+  }
+
+  async function openQuickAction(module, selector, resource) {
+    if (resource && !App.canWrite(resource)) {
+      UI.toast('Seu perfil não permite esta operação.', 'warning');
+      return;
+    }
+    await App.navigate(module);
+    await wait(70);
+    const button = document.querySelector(selector);
+    if (!button || button.classList.contains('d-none')) {
+      UI.toast('A ação não está disponível para este perfil.', 'warning');
+      return;
+    }
+    button.click();
+  }
+
+  function bindDashboardActions() {
+    document.querySelectorAll('[data-quick-action]').forEach(button => {
+      if (button.dataset.simpleBound === '1') return;
+      button.dataset.simpleBound = '1';
+      button.addEventListener('click', () => {
+        const actions = {
+          production: ['producao', '#newProductionButton', 'producoes'],
+          loss: ['perdas', '#newLossButton', 'perdas'],
+          stock: ['estoque', '#stockEntryButton', 'estoque'],
+          task: ['tarefas', '#newTaskButton', 'tarefas']
+        };
+        const action = actions[button.dataset.quickAction];
+        if (action) openQuickAction(...action);
+      });
+    });
+
+    const metricRoutes = {
+      metricLowStock: 'compras',
+      metricProductionToday: 'producao',
+      metricProductionsInProgress: 'producao',
+      metricProductsInStock: 'estoque',
+      metricPurchases: 'compras',
+      metricLossesToday: 'perdas'
+    };
+    Object.entries(metricRoutes).forEach(([id, module]) => {
+      const card = document.getElementById(id)?.closest('.metric-card');
+      if (!card || card.dataset.simpleBound === '1') return;
+      card.dataset.simpleBound = '1';
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.addEventListener('click', () => App.navigate(module));
+      card.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          App.navigate(module);
+        }
+      });
+    });
+  }
+
+  function simplifyProductionStart(form) {
+    if (form.dataset.simpleUx === '1') return;
+    form.dataset.simpleUx = '1';
+    form.classList.add('simple-form');
+
+    const product = setColumn(form, 'PRODUTO_ID', 'col-md-6');
+    const input = setColumn(form, 'INSUMO_ID', 'col-md-6');
+    const quantity = setColumn(form, 'QUANTIDADE_INSUMO', 'col-md-6');
+    const operator = setColumn(form, 'OPERADOR_ID', 'col-md-6');
+
+    form.querySelector('[name="PRODUTO_ID"]')?.closest('div')?.querySelector('label')?.replaceChildren('O que será produzido?');
+    form.querySelector('[name="INSUMO_ID"]')?.closest('div')?.querySelector('label')?.replaceChildren('Qual insumo será usado?');
+    form.querySelector('[name="QUANTIDADE_INSUMO"]')?.closest('div')?.querySelector('label')?.replaceChildren('Quanto foi separado?');
+    form.querySelector('[name="OPERADOR_ID"]')?.closest('div')?.querySelector('label')?.replaceChildren('Responsável');
+
+    const existingAlert = [...form.querySelectorAll('.alert')].find(item => item.textContent.includes('Nesta etapa'))?.closest('.col-12');
+    existingAlert?.remove();
+
+    form.prepend(intro('play_circle', 'Início rápido', 'Escolha o produto, o insumo utilizado e a quantidade separada. O restante é preenchido automaticamente.'));
+    [product, input, quantity, operator].filter(Boolean).forEach(wrapper => form.appendChild(wrapper));
+    moveToDetails(form, ['LOTE', 'DATA_PRODUCAO', 'OBSERVACOES'], 'Mais opções', 'tune');
+  }
+
+  function simplifyProductionFinish(form) {
+    if (form.dataset.simpleUx === '1') return;
+    form.dataset.simpleUx = '1';
+    form.classList.add('simple-form');
+
+    const summary = form.querySelector('.production-result-summary')?.closest('.col-12');
+    const unitRow = form.querySelector('.production-unit-row')?.closest('.col-12');
+    const yieldBox = document.getElementById('finishYieldV2')?.closest('.col-12');
+    const costBox = form.querySelector('.production-cost-preview')?.closest('.col-12');
+    const warning = [...form.querySelectorAll('.alert')].find(item => item.textContent.includes('Ao finalizar'))?.closest('.col-12');
+    const lossWrap = fieldWrap(form, 'QUANTIDADE_PERDIDA');
+    const categoryWrap = fieldWrap(form, 'CATEGORIA_PERDA');
+    const observationWrap = fieldWrap(form, 'OBSERVACOES');
+
+    form.insertBefore(intro('task_alt', 'Finalização simples', 'Informe somente quanto ficou pronto. Marque a opção de perda apenas quando realmente houver descarte.'), summary || form.firstChild);
+
+    if (lossWrap && categoryWrap) {
+      const toggleHost = document.createElement('div');
+      toggleHost.className = 'col-12';
+      toggleHost.innerHTML = `<div class="simple-loss-toggle"><div><strong>Houve perda nesta produção?</strong><small>Ative apenas quando parte do produto foi descartada.</small></div><label class="simple-switch"><input id="simpleProductionLossToggle" type="checkbox"><span></span></label></div>`;
+
+      const fields = document.createElement('div');
+      fields.id = 'simpleProductionLossFields';
+      fields.className = 'col-12 simple-loss-fields d-none';
+      const row = document.createElement('div');
+      row.className = 'row g-3';
+      fields.appendChild(row);
+      row.appendChild(lossWrap);
+      row.appendChild(categoryWrap);
+
+      const anchor = yieldBox || costBox || warning;
+      if (anchor) {
+        form.insertBefore(toggleHost, anchor);
+        form.insertBefore(fields, anchor);
+      } else {
+        form.append(toggleHost, fields);
+      }
+
+      const toggle = toggleHost.querySelector('input');
+      const lossInput = form.querySelector('[name="QUANTIDADE_PERDIDA"]');
+      const sync = () => {
+        fields.classList.toggle('d-none', !toggle.checked);
+        if (!toggle.checked && lossInput) {
+          lossInput.value = '0';
+          lossInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      };
+      toggle.checked = Number(lossInput?.value || 0) > 0;
+      toggle.addEventListener('change', sync);
+      sync();
+    }
+
+    if (observationWrap) {
+      const advanced = detailsBlock('Adicionar observação', 'notes');
+      advanced.querySelector('.row').appendChild(observationWrap);
+      warning ? form.insertBefore(advanced, warning) : form.appendChild(advanced);
+    }
+
+    [summary, unitRow, yieldBox, costBox, warning].filter(Boolean).forEach(item => form.appendChild(item));
+  }
+
+  function simplifyLoss(form) {
+    if (form.dataset.simpleUx === '1') return;
+    form.dataset.simpleUx = '1';
+    form.classList.add('simple-form');
+
+    const type = setColumn(form, 'TIPO_ITEM', 'col-md-6');
+    const item = document.getElementById('lossV2ItemWrap');
+    if (item) item.className = 'col-md-6';
+    const custom = document.getElementById('lossV2CustomWrap');
+    const quantity = setColumn(form, 'QUANTIDADE', 'col-md-6');
+    const category = setColumn(form, 'CATEGORIA', 'col-md-6');
+    const reason = setColumn(form, 'MOTIVO', 'col-12');
+    const costCard = document.getElementById('lossV2CostCard')?.closest('.col-12');
+
+    form.querySelector('[name="TIPO_ITEM"]')?.closest('div')?.querySelector('label')?.replaceChildren('O que foi perdido?');
+    form.querySelector('[name="ITEM_ID"]')?.closest('div')?.querySelector('label')?.replaceChildren('Qual item?');
+    form.querySelector('[name="QUANTIDADE"]')?.closest('div')?.querySelector('label')?.replaceChildren('Quanto?');
+    form.querySelector('[name="CATEGORIA"]')?.closest('div')?.querySelector('label')?.replaceChildren('Por que aconteceu?');
+    const reasonLabel = form.querySelector('[name="MOTIVO"]')?.closest('div')?.querySelector('label');
+    if (reasonLabel) reasonLabel.textContent = 'Observação rápida';
+    const reasonInput = form.querySelector('[name="MOTIVO"]');
+    if (reasonInput) {
+      reasonInput.rows = 2;
+      reasonInput.placeholder = 'Explique em poucas palavras o que aconteceu.';
+    }
+
+    form.prepend(intro('delete_sweep', 'Registro rápido de perda', 'Escolha o item, informe a quantidade e o motivo. O valor é calculado automaticamente.'));
+    [type, item, custom, quantity, category, costCard, reason].filter(Boolean).forEach(wrapper => form.appendChild(wrapper));
+
+    const advanced = moveToDetails(form, ['CUSTO_UNITARIO', 'OPERADOR_ID', 'SUPERVISOR_ID'], 'Mais opções', 'tune');
+    const photo = document.getElementById('lossV2Photo')?.closest('.col-12');
+    if (photo) {
+      const target = advanced || detailsBlock('Mais opções', 'tune');
+      if (!advanced) form.appendChild(target);
+      target.querySelector('.row').appendChild(photo);
+      const note = document.createElement('div');
+      note.className = 'col-12 simple-required-note';
+      note.textContent = 'A foto é opcional. Use quando precisar comprovar a ocorrência.';
+      target.querySelector('.row').appendChild(note);
+    }
+
+    const typeSelect = document.getElementById('lossV2Type');
+    typeSelect?.addEventListener('change', () => {
+      if (typeSelect.value === 'AVULSO' && advanced) {
+        advanced.open = true;
+        setTimeout(() => document.getElementById('lossV2UnitCost')?.focus(), 80);
+      }
+    });
+  }
+
+  function enhanceModal() {
+    const productionStart = document.getElementById('productionStartForm');
+    const productionFinish = document.getElementById('productionFinishForm');
+    const loss = document.getElementById('lossV2Form');
+    if (productionStart) simplifyProductionStart(productionStart);
+    if (productionFinish) simplifyProductionFinish(productionFinish);
+    if (loss) simplifyLoss(loss);
+  }
+
+  const modalBody = document.getElementById('modalBody');
+  if (modalBody) {
+    new MutationObserver(() => requestAnimationFrame(enhanceModal)).observe(modalBody, { childList: true, subtree: true });
+  }
+  document.getElementById('appModal')?.addEventListener('shown.bs.modal', enhanceModal);
+  document.addEventListener('click', event => {
+    if (event.target.closest('[data-module="dashboard"],[data-navigate="dashboard"]')) setTimeout(bindDashboardActions, 80);
+  });
+
+  bindDashboardActions();
+  window.SimpleUX = { enhanceModal, bindDashboardActions, openQuickAction };
+})();
+</script>
