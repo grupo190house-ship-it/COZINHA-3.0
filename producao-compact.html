@@ -1,0 +1,314 @@
+<style id="production-compact-style">
+  /* Produção: leitura rápida e densidade operacional */
+  #view-producao .production-list {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+    padding: 12px;
+  }
+
+  #view-producao .production-card.production-card-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 14px;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(9, 30, 66, .08);
+  }
+
+  .production-card-compact .production-card-head {
+    margin-bottom: 10px;
+  }
+
+  .production-card-compact .production-card-code {
+    font-size: 14px;
+  }
+
+  .production-card-compact .production-card-date {
+    font-size: 10px;
+  }
+
+  .production-card-compact .production-status {
+    padding: 5px 9px;
+    border-radius: 999px;
+  }
+
+  .production-compact-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 13px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f8fafc, #fff);
+  }
+
+  .production-compact-product {
+    min-width: 0;
+  }
+
+  .production-compact-product small,
+  .production-compact-input small {
+    display: block;
+    color: #626f86;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .production-compact-product strong {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    color: #172b4d;
+    font-size: 15px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .production-compact-product span {
+    display: block;
+    margin-top: 3px;
+    color: #0c66e4;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .production-compact-input {
+    flex: 0 0 auto;
+    max-width: 46%;
+    padding-left: 14px;
+    border-left: 1px solid #dfe1e6;
+    text-align: right;
+  }
+
+  .production-compact-input strong,
+  .production-compact-input span {
+    display: block;
+    overflow: hidden;
+    color: #172b4d;
+    font-size: 11px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .production-compact-input span {
+    margin-top: 2px;
+    color: #626f86;
+    font-weight: 600;
+  }
+
+  .production-compact-details {
+    margin-top: 9px;
+    border: 1px solid #ebecf0;
+    border-radius: 11px;
+    background: #fff;
+  }
+
+  .production-compact-details > summary {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 40px;
+    padding: 9px 11px;
+    color: #44546f;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .production-compact-details > summary::-webkit-details-marker { display: none; }
+  .production-compact-details > summary::after {
+    content: 'expand_more';
+    margin-left: auto;
+    font-family: 'Material Symbols Rounded';
+    font-size: 18px;
+    font-weight: normal;
+    transition: transform .18s ease;
+  }
+  .production-compact-details[open] > summary::after { transform: rotate(180deg); }
+
+  .production-compact-details-body {
+    padding: 0 10px 10px;
+  }
+
+  .production-card-compact .production-card-metrics {
+    grid-template-columns: 1fr;
+    gap: 0;
+    border-top: 1px solid #f0f1f3;
+  }
+
+  .production-card-compact .production-card-metric {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 36px;
+    padding: 8px 2px;
+    border: 0;
+    border-bottom: 1px solid #f0f1f3;
+    border-radius: 0;
+  }
+
+  .production-card-compact .production-card-metric:last-child { border-bottom: 0; }
+  .production-card-compact .production-card-metric small { font-size: 10px; }
+  .production-card-compact .production-card-metric strong {
+    margin: 0;
+    max-width: 65%;
+    font-size: 11px;
+    text-align: right;
+    white-space: normal;
+  }
+
+  .production-card-compact .production-card-actions {
+    margin-top: 10px;
+  }
+
+  .production-card-compact .production-card-actions .btn {
+    min-height: 38px;
+    border-radius: 10px;
+    font-size: 11px;
+  }
+
+  /* Modal de produção mais curto e objetivo */
+  #productionStartForm.simple-form,
+  #productionFinishForm.simple-form {
+    row-gap: 11px !important;
+  }
+
+  #productionStartForm .simple-form-intro,
+  #productionFinishForm .simple-form-intro {
+    min-height: 64px;
+    padding: 11px 13px;
+    border-radius: 13px;
+  }
+
+  #productionStartForm .simple-form-intro > .material-symbols-rounded,
+  #productionFinishForm .simple-form-intro > .material-symbols-rounded {
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
+  }
+
+  #productionStartForm .simple-form-intro strong,
+  #productionFinishForm .simple-form-intro strong { font-size: 13px; }
+  #productionStartForm .simple-form-intro span,
+  #productionFinishForm .simple-form-intro span { font-size: 11px; line-height: 1.35; }
+
+  #productionStartForm .form-label,
+  #productionFinishForm .form-label {
+    margin-bottom: 5px;
+    font-size: 11px;
+  }
+
+  #productionStartForm .form-control,
+  #productionStartForm .form-select,
+  #productionFinishForm .form-control,
+  #productionFinishForm .form-select {
+    min-height: 43px;
+    padding: 8px 11px;
+    border-radius: 11px;
+    font-size: 13px;
+  }
+
+  #productionStartForm .simple-more,
+  #productionFinishForm .simple-more {
+    border-radius: 12px;
+  }
+
+  #productionStartForm .simple-more > summary,
+  #productionFinishForm .simple-more > summary {
+    min-height: 45px;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  [data-theme="dark"] .production-compact-summary {
+    border-color: #454f59;
+    background: linear-gradient(135deg, #282e33, #22272b);
+  }
+  [data-theme="dark"] .production-compact-product strong,
+  [data-theme="dark"] .production-compact-input strong { color: #e9edf2; }
+  [data-theme="dark"] .production-compact-details { background: #22272b; border-color: #454f59; }
+  [data-theme="dark"] .production-card-compact .production-card-metric { border-color: #38414a; }
+
+  @media (max-width: 600px) {
+    #view-producao .page-head {
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    #view-producao .page-head h1 { font-size: 24px; }
+    #view-producao .page-actions { margin-top: 0; }
+    #newProductionButton {
+      min-height: 42px;
+      padding: 9px 13px;
+      border-radius: 11px;
+    }
+
+    #view-producao .production-list {
+      grid-template-columns: 1fr;
+      gap: 8px;
+      padding: 8px 0;
+    }
+
+    #view-producao .card-surface:has(#productionsTable) {
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    #view-producao .production-card.production-card-compact {
+      padding: 12px;
+      border-radius: 14px;
+    }
+
+    .production-compact-summary {
+      padding: 11px;
+    }
+
+    .production-compact-product strong { font-size: 14px; }
+    .production-compact-product span { font-size: 12px; }
+    .production-compact-input { max-width: 43%; padding-left: 10px; }
+
+    #appModal:has(#productionStartForm) .modal-dialog,
+    #appModal:has(#productionFinishForm) .modal-dialog {
+      align-items: flex-end;
+      min-height: 100%;
+      margin: 0;
+    }
+
+    #appModal:has(#productionStartForm) .modal-content,
+    #appModal:has(#productionFinishForm) .modal-content {
+      max-height: calc(100dvh - 105px);
+      border-radius: 20px 20px 0 0;
+    }
+
+    #appModal:has(#productionStartForm) .modal-header,
+    #appModal:has(#productionFinishForm) .modal-header {
+      padding: 14px 16px 11px;
+    }
+
+    #appModal:has(#productionStartForm) .modal-title,
+    #appModal:has(#productionFinishForm) .modal-title { font-size: 21px; }
+
+    #appModal:has(#productionStartForm) .modal-body,
+    #appModal:has(#productionFinishForm) .modal-body {
+      padding: 12px 14px;
+    }
+
+    #appModal:has(#productionStartForm) .modal-footer,
+    #appModal:has(#productionFinishForm) .modal-footer {
+      gap: 8px;
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    }
+
+    #appModal:has(#productionStartForm) .modal-footer .btn,
+    #appModal:has(#productionFinishForm) .modal-footer .btn {
+      min-height: 45px;
+      border-radius: 11px;
+      font-size: 13px;
+    }
+  }
+</style>
