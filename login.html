@@ -3,18 +3,19 @@
     <div class="login-form-wrap">
       <div class="login-brand-row d-flex align-items-center gap-3">
         <div class="brand-mark"><span class="material-symbols-rounded">skillet</span></div>
-        <div><strong id="loginCompany">Cozinha Industrial</strong><small class="d-block text-secondary">Estoque e produção sob controle</small></div>
+        <div><strong id="loginCompany">Cozinha Industrial</strong><small class="d-block text-secondary">Produção, estoque e perdas em um só fluxo</small></div>
       </div>
 
       <div class="login-mobile-intro">
-        <span class="login-mobile-pill"><span class="material-symbols-rounded">verified</span> Operação organizada</span>
-        <h2>Da entrada ao produto pronto.</h2>
-        <p>Acompanhe estoque, produção e compras pelo celular.</p>
-        <div class="login-mobile-features"><span>Estoque</span><span>Produção</span><span>Compras</span></div>
+        <span class="login-mobile-pill"><span class="material-symbols-rounded">bolt</span> Operação em movimento</span>
+        <h2>Uma cozinha organizada responde mais rápido.</h2>
+        <p>Registre a produção, acompanhe o estoque e identifique as perdas pelo celular.</p>
+        <div class="login-mobile-features"><span>Produção</span><span>Estoque</span><span>Perdas</span></div>
       </div>
 
       <div id="loginView" class="login-access-card">
-        <h1>Acesse sua operação.</h1>
+        <span class="eyebrow">Acesso à operação</span>
+        <h1>Entre para colocar a cozinha em ordem.</h1>
         <p class="text-secondary mb-4">Use seu email e senha para continuar.</p>
         <form id="loginForm">
           <div class="mb-3">
@@ -29,12 +30,13 @@
             <label class="form-check"><input name="remember" class="form-check-input" type="checkbox"><span class="form-check-label">Lembrar acesso</span></label>
             <button id="forgotButton" type="button" class="btn btn-link p-0 text-decoration-none">Esqueci minha senha</button>
           </div>
-          <button class="btn btn-primary w-100" type="submit"><span class="material-symbols-rounded">login</span><span>Entrar</span></button>
+          <button class="btn btn-primary w-100" type="submit"><span class="material-symbols-rounded">arrow_forward</span><span>Entrar na operação</span></button>
         </form>
       </div>
 
       <div id="setupView" class="login-access-card d-none">
-        <h1>Vamos preparar seu ERP.</h1>
+        <span class="eyebrow">Primeira configuração</span>
+        <h1>Vamos preparar seu ambiente.</h1>
         <p class="text-secondary mb-4">Esta etapa cria o banco e o primeiro administrador.</p>
         <form id="setupForm" class="row g-3">
           <div class="col-12"><label class="form-label">Nome da empresa</label><input name="companyName" class="form-control" required></div>
@@ -44,17 +46,53 @@
           <div class="col-12"><button class="btn btn-primary w-100" type="submit"><span class="material-symbols-rounded">rocket_launch</span><span>Criar ambiente</span></button></div>
         </form>
       </div>
-      <p class="login-version mt-4 mb-0 text-secondary small">CozinhaFlow ERP · v<span id="loginVersion">1.2.0</span></p>
+      <p class="login-version mt-4 mb-0 text-secondary small">CozinhaFlow ERP · v<span id="loginVersion">1.5.0</span></p>
     </div>
   </div>
+
   <aside class="login-art">
     <div class="login-art-card">
-      <span class="eyebrow text-white-50">OPERAÇÃO SOB CONTROLE</span>
-      <h2>Da entrada do insumo ao produto pronto.</h2>
-      <p class="lead text-white-50">Estoque, produção, compras e inventário em uma experiência única.</p>
-      <div class="login-feature"><span class="material-symbols-rounded">inventory_2</span><span>Entradas, lotes e PEPS automáticos</span></div>
-      <div class="login-feature"><span class="material-symbols-rounded">monitoring</span><span>Indicadores gerenciais em tempo real</span></div>
-      <div class="login-feature"><span class="material-symbols-rounded">verified_user</span><span>Permissões e auditoria de cada ação</span></div>
+      <span class="md-kicker">Infraestrutura para uma cozinha mais produtiva</span>
+      <h2>Do insumo à resposta.</h2>
+      <p class="lead">Uma visão clara do que entrou, do que foi produzido e do que precisa ser corrigido.</p>
+
+      <div class="md-login-illustration" aria-hidden="true">
+        <svg viewBox="0 0 680 410" role="img">
+          <rect x="45" y="62" width="590" height="300" rx="12" fill="#fffdf8" stroke="#292825" stroke-width="6"/>
+          <rect x="45" y="62" width="590" height="52" rx="12" fill="#292825"/>
+          <circle cx="78" cy="88" r="8" fill="#f2685b"/>
+          <circle cx="104" cy="88" r="8" fill="#ffe44f"/>
+          <circle cx="130" cy="88" r="8" fill="#73c69c"/>
+          <text x="170" y="95" fill="#fffdf8" font-family="IBM Plex Mono, monospace" font-size="17" font-weight="700">COZINHAFLOW / OPERAÇÃO</text>
+
+          <rect x="73" y="142" width="165" height="86" rx="7" fill="#d9efff" stroke="#292825" stroke-width="4"/>
+          <text x="92" y="172" fill="#292825" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="700">PRODUÇÃO HOJE</text>
+          <text x="92" y="209" fill="#292825" font-family="IBM Plex Mono, monospace" font-size="32" font-weight="800">60 un</text>
+
+          <rect x="257" y="142" width="165" height="86" rx="7" fill="#ffe0db" stroke="#292825" stroke-width="4"/>
+          <text x="276" y="172" fill="#292825" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="700">PERDAS</text>
+          <text x="276" y="209" fill="#292825" font-family="IBM Plex Mono, monospace" font-size="30" font-weight="800">R$ 34</text>
+
+          <rect x="441" y="142" width="165" height="86" rx="7" fill="#dff4e9" stroke="#292825" stroke-width="4"/>
+          <text x="460" y="172" fill="#292825" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="700">ESTOQUE</text>
+          <text x="460" y="209" fill="#292825" font-family="IBM Plex Mono, monospace" font-size="30" font-weight="800">OK</text>
+
+          <path d="M86 321c43-42 71-17 111-50 48-40 78 28 125-4 51-34 67-2 111-29 37-23 77-20 150 43" fill="none" stroke="#1686d9" stroke-width="8" stroke-linecap="round"/>
+          <circle cx="86" cy="321" r="9" fill="#ff8a3d" stroke="#292825" stroke-width="3"/>
+          <circle cx="197" cy="271" r="9" fill="#ffe44f" stroke="#292825" stroke-width="3"/>
+          <circle cx="322" cy="267" r="9" fill="#bca7ef" stroke="#292825" stroke-width="3"/>
+          <circle cx="433" cy="238" r="9" fill="#73c69c" stroke="#292825" stroke-width="3"/>
+          <circle cx="583" cy="281" r="9" fill="#f2685b" stroke="#292825" stroke-width="3"/>
+
+          <path d="M18 157h42M39 136v42" stroke="#292825" stroke-width="5" stroke-linecap="round"/>
+          <path d="M622 21h42M643 0v42" stroke="#292825" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="635" cy="367" r="25" fill="#ffe44f" stroke="#292825" stroke-width="5"/>
+        </svg>
+      </div>
+
+      <div class="login-feature"><span class="material-symbols-rounded">inventory_2</span><span>Entradas, lotes e saldo em uma única visão</span></div>
+      <div class="login-feature"><span class="material-symbols-rounded">precision_manufacturing</span><span>Produção rápida com custo e rendimento</span></div>
+      <div class="login-feature"><span class="material-symbols-rounded">monitoring</span><span>Perdas e alertas que viram ação</span></div>
     </div>
   </aside>
 </section>
