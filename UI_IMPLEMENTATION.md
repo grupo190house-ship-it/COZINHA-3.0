@@ -9,7 +9,8 @@ A implementação não reutiliza código-fonte proprietário do site de referên
 ## Estrutura dos arquivos visuais
 
 - `index.html` — carregador principal, dependências, acessibilidade e ordem dos estilos.
-- `motherduck-kitchen-theme.html` — design tokens e substituição visual global.
+- `motherduck-kitchen-theme.html` — identidade global, layout e componentes.
+- `motherduck-fidelity-overrides.html` — tokens finais, estados e acessibilidade.
 - `dashboard.html` — abertura editorial, arte SVG original e indicadores operacionais.
 - `login.html` — tela de acesso editorial com arte SVG original.
 - `styles.html` — estrutura base do aplicativo.
@@ -21,7 +22,7 @@ A implementação não reutiliza código-fonte proprietário do site de referên
 - `producao-compact.html` — cartões e modais compactos da produção.
 - `estoque-compact-style.html` — formulário compacto de entrada.
 
-`motherduck-kitchen-theme.html` é carregado por último para substituir a identidade anterior sem alterar IDs, eventos ou regras de negócio.
+As duas camadas editoriais são carregadas por último para substituir a identidade anterior sem alterar IDs, eventos ou regras de negócio.
 
 ## Dependências
 
@@ -48,30 +49,35 @@ A referência utiliza uma fonte monoespaçada proprietária semelhante a Aeonik 
 - Texto corrido e formulários: Inter, pesos 400–800.
 - Ícones: Material Symbols Rounded.
 
-## Design tokens
+## Design tokens finais
 
-Todos os tokens estão definidos no início de `motherduck-kitchen-theme.html`.
+Os valores finais estão em `motherduck-fidelity-overrides.html`.
 
 ### Cores
 
-- Fundo creme: `#f4efea` / implementação `#f5f0e8`
-- Papel branco: `#fffdf8`
-- Texto e bordas: `#292825`
-- Azul principal: `#63b7f4`
-- Azul de ação: `#1686d9`
-- Amarelo: `#ffe44f`
-- Laranja: `#ff8a3d`
-- Verde: `#73c69c`
-- Vermelho: `#f2685b`
-- Lilás: `#bca7ef`
+- Fundo creme: `#f4efea`
+- Papel branco: `#ffffff`
+- Superfície secundária: `#f8f8f7`
+- Azul claro: `#ebf9ff`
+- Texto, bordas e sombras: `#383838`
+- Azul principal: `#6fc2ff`
+- Azul de foco: `#2ba5ff`
+- Amarelo: `#ffde00`
+- Laranja: `#ff9538`
+- Verde/mint: `#38c1b0`
+- Coral: `#f38e84`
+- Lilás: `#b291de`
+- Cinza de texto secundário: `#818181`
+- Placeholder/desabilitado: `#a1a1a1`
 
 ### Bordas e sombras
 
-- Borda principal: `1.5px` ou `2px solid #292825`
-- Sombra rígida pequena: `2px 2px 0 #292825`
-- Sombra rígida grande: `4px 4px 0 #292825`
+- Borda estrutural: `2px solid #383838`
+- Borda de controles: `1.5px solid #383838`
+- Sombra rígida pequena: `3px 3px 0 #383838`
+- Sombra rígida grande: `6px 6px 0 #383838`
 - Arredondamento padrão: `8px`
-- Arredondamentos grandes foram evitados, exceto chips, avatares e ilustrações.
+- Chips e avatares podem usar formato circular.
 
 ### Espaçamento
 
@@ -107,14 +113,16 @@ A escala aplicada usa principalmente:
 
 ## Estados de interação
 
-- `hover`: deslocamento de 1 px e aumento da sombra rígida.
-- `focus`: borda escura e sombra azul rígida.
-- `active`: redução da sombra e deslocamento do controle.
-- `disabled`: opacidade reduzida, cursor bloqueado e ausência de transformação.
+- `hover`: deslocamento negativo de 2 px e sombra rígida de 6 px.
+- `focus-visible`: contorno azul de 3 px com afastamento.
+- `focus` de formulário: borda escura e sombra azul rígida.
+- `active`: deslocamento positivo de 2 px e remoção da sombra.
+- `disabled`: opacidade reduzida, escala de cinza e interação bloqueada.
 - `selected`: fundo amarelo ou azul-claro e borda escura.
-- `error`: vermelho/coral.
+- `error`: coral/vermelho.
 - `success`: verde/mint.
 - `warning`: amarelo ou laranja.
+- `prefers-reduced-motion`: animações e transições são praticamente desativadas.
 
 ## Breakpoints
 
@@ -158,8 +166,9 @@ A escala aplicada usa principalmente:
 - `aria-label` foi mantido/adicionado em botões de ícone.
 - Toasts usam `aria-live="polite"`.
 - O modal possui associação com `modalTitle`.
-- Contraste foi mantido alto com texto `#292825` sobre superfícies claras.
+- Contraste alto com texto `#383838` sobre superfícies claras.
 - Foco visual explícito para teclado.
+- Respeito à preferência `prefers-reduced-motion`.
 - A estrutura funcional anterior foi preservada para não interromper a navegação por teclado.
 
 ## Instalação e execução
@@ -174,7 +183,7 @@ O projeto é estático no GitHub Pages e utiliza Firebase/Apps Script como backe
 6. Ative o GitHub Pages para o branch `main`, diretório raiz.
 7. Abra a URL do GitHub Pages.
 
-Para desenvolvimento local, use qualquer servidor HTTP estático, por exemplo:
+Para desenvolvimento local, use qualquer servidor HTTP estático:
 
 ```bash
 python -m http.server 8080
