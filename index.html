@@ -27,7 +27,7 @@
   <script>
     (() => {
       'use strict';
-      const ASSET_VERSION = '20260730-editorial-md-v13';
+      const ASSET_VERSION = '20260730-editorial-md-v14';
       localStorage.setItem('cozinhaflow_theme', 'light');
 
       const stopZoom = event => event.preventDefault();
@@ -78,7 +78,8 @@
           productionCompact,
           stockCompact,
           mobileMenuFix,
-          editorialTheme
+          editorialTheme,
+          fidelityTheme
         ] = await Promise.all([
           fetchText('styles.html'),
           fetchText('theme.html'),
@@ -91,12 +92,13 @@
           fetchText('producao-compact.html'),
           fetchText('estoque-compact-style.html'),
           fetchText('mobile-menu-fix.html'),
-          fetchText('motherduck-kitchen-theme.html')
+          fetchText('motherduck-kitchen-theme.html'),
+          fetchText('motherduck-fidelity-overrides.html')
         ]);
 
         document.head.insertAdjacentHTML(
           'beforeend',
-          styles + theme + trelloTheme + mobilePolish + mobileV2 + productionStyle + lossesStyle + simpleModern + productionCompact + stockCompact + mobileMenuFix + editorialTheme +
+          styles + theme + trelloTheme + mobilePolish + mobileV2 + productionStyle + lossesStyle + simpleModern + productionCompact + stockCompact + mobileMenuFix + editorialTheme + fidelityTheme +
           '<style>html,body{touch-action:pan-x pan-y}@media(max-width:900px){input,select,textarea,.form-control,.form-select{font-size:16px!important}}.firebase-status{position:fixed;right:14px;bottom:72px;z-index:1085;padding:7px 11px;pointer-events:none}.firebase-status::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#2e9c68}@media(min-width:901px){.firebase-status{bottom:14px}}</style>'
         );
 
