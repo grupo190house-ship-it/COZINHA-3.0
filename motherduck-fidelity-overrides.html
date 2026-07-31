@@ -1,0 +1,266 @@
+<style id="motherduck-fidelity-overrides">
+  :root {
+    --md-cream: #f4efea;
+    --md-paper: #ffffff;
+    --md-paper-2: #f8f8f7;
+    --md-ink: #383838;
+    --md-muted: #818181;
+    --md-line: #383838;
+    --md-blue: #6fc2ff;
+    --md-blue-dark: #2ba5ff;
+    --md-yellow: #ffde00;
+    --md-orange: #ff9538;
+    --md-green: #38c1b0;
+    --md-red: #f38e84;
+    --md-lilac: #b291de;
+    --md-shadow: 6px 6px 0 #383838;
+    --md-shadow-sm: 3px 3px 0 #383838;
+    --bg: #f4efea;
+    --surface: #ffffff;
+    --surface-2: #f8f8f7;
+    --surface-3: #ebf9ff;
+    --text: #383838;
+    --muted: #818181;
+    --primary: #6fc2ff;
+    --primary-2: #2ba5ff;
+    --border: rgba(56,56,56,.24);
+    --shadow-sm: none;
+    --shadow-md: 6px 6px 0 #383838;
+  }
+
+  body,
+  [data-theme="dark"] body {
+    background:
+      radial-gradient(circle at 1px 1px, rgba(56,56,56,.07) 1px, transparent 1.2px) 0 0 / 22px 22px,
+      #f4efea !important;
+    color: #383838 !important;
+  }
+
+  body::before {
+    background: linear-gradient(90deg, #ffde00 0 32%, #ff9538 32% 48%, #6fc2ff 48% 78%, #38c1b0 78%) !important;
+  }
+
+  .sidebar,
+  .topbar,
+  .mobile-bottom-nav,
+  .card-surface,
+  .metric-card,
+  .quick-action-card,
+  .stock-item-card,
+  .purchase-card,
+  .task-summary-card,
+  .task-card,
+  .production-card,
+  .task-column,
+  .toolbar,
+  .task-toolbar,
+  .task-archive,
+  .modal-content,
+  .login-form-wrap,
+  .form-control,
+  .form-select,
+  .dropdown-menu,
+  .search-results,
+  .table-responsive {
+    color: #383838 !important;
+  }
+
+  .card-surface,
+  .metric-card,
+  .quick-action-card,
+  .stock-item-card,
+  .purchase-card,
+  .task-summary-card,
+  .task-card,
+  .production-card,
+  .task-column,
+  .toolbar,
+  .task-toolbar,
+  .task-archive,
+  .modal-content,
+  .login-form-wrap,
+  .dropdown-menu,
+  .search-results,
+  .table-responsive {
+    border-color: #383838 !important;
+    background: #ffffff !important;
+  }
+
+  .sidebar,
+  .topbar,
+  .mobile-bottom-nav,
+  .modal-content,
+  .login-form-wrap,
+  .md-kitchen-hero,
+  .task-board {
+    border-color: #383838 !important;
+  }
+
+  .md-kitchen-hero,
+  .login-form-wrap,
+  .modal-content,
+  .task-board {
+    box-shadow: 6px 6px 0 #383838 !important;
+  }
+
+  .metric-card,
+  .quick-action-card,
+  .stock-item-card,
+  .purchase-card,
+  .task-summary-card,
+  .task-card,
+  .production-card,
+  .task-column,
+  .side-link.active,
+  .mobile-nav-link.active,
+  .btn-primary,
+  .topbar .icon-btn {
+    box-shadow: 3px 3px 0 #383838 !important;
+  }
+
+  .topbar,
+  .sidebar,
+  .mobile-bottom-nav,
+  .modal-header,
+  .modal-footer {
+    background: #ffffff !important;
+  }
+
+  .md-kitchen-art,
+  .login-art,
+  .task-board { background: #6fc2ff !important; }
+  .md-kicker,
+  .side-link.active,
+  .mobile-nav-link.active,
+  .table th,
+  .simple-form-intro,
+  .stock-entry-intro { background: #ffde00 !important; }
+  .btn-primary { background: #6fc2ff !important; color: #383838 !important; }
+
+  :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid #2ba5ff !important;
+    outline-offset: 3px !important;
+  }
+
+  .form-control:focus,
+  .form-select:focus {
+    border-color: #383838 !important;
+    box-shadow: 4px 4px 0 #6fc2ff !important;
+  }
+
+  .btn,
+  .icon-btn,
+  .side-link,
+  .mobile-nav-link,
+  .quick-action-card,
+  .metric-card,
+  .task-card,
+  .production-card,
+  .stock-item-card,
+  .purchase-card {
+    transition:
+      transform 140ms ease,
+      box-shadow 140ms ease,
+      background-color 140ms ease,
+      border-color 140ms ease,
+      color 140ms ease !important;
+  }
+
+  @media (hover: hover) {
+    .btn:not(:disabled):hover,
+    .icon-btn:not(:disabled):hover,
+    .side-link:hover,
+    .mobile-nav-link:hover,
+    .quick-action-card:hover,
+    .metric-card:hover,
+    .task-card:hover,
+    .production-card:hover,
+    .stock-item-card:hover,
+    .purchase-card:hover {
+      transform: translate(-2px,-2px) !important;
+      box-shadow: 6px 6px 0 #383838 !important;
+    }
+
+    .btn-primary:not(:disabled):hover,
+    .side-link:hover,
+    .mobile-nav-link:hover { background: #ffde00 !important; color: #383838 !important; }
+  }
+
+  .btn:not(:disabled):active,
+  .icon-btn:not(:disabled):active,
+  .side-link:active,
+  .mobile-nav-link:active,
+  .quick-action-card:active,
+  .metric-card:active,
+  .task-card:active,
+  .production-card:active,
+  .stock-item-card:active,
+  .purchase-card:active {
+    transform: translate(2px,2px) !important;
+    box-shadow: 0 0 0 #383838 !important;
+  }
+
+  :where(button, input, select, textarea, .btn).disabled,
+  :where(button, input, select, textarea, .btn):disabled,
+  :where(button, input, select, textarea, .btn)[aria-disabled="true"] {
+    opacity: .46 !important;
+    cursor: not-allowed !important;
+    filter: grayscale(.25);
+    transform: none !important;
+    box-shadow: none !important;
+    pointer-events: none;
+  }
+
+  .form-control::placeholder,
+  .form-select:invalid { color: #a1a1a1 !important; }
+
+  .app-footer {
+    padding: 22px 2px 8px !important;
+    border-top: 1.5px dashed #383838;
+    color: #818181 !important;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: .03em;
+  }
+
+  .badge-soft.success { background: #d8f5ed !important; color: #245e54 !important; border: 1px solid #383838; }
+  .badge-soft.warning { background: #fff4b8 !important; color: #6f5711 !important; border: 1px solid #383838; }
+  .badge-soft.danger { background: #ffe0dc !important; color: #8b332c !important; border: 1px solid #383838; }
+  .badge-soft.info { background: #ebf9ff !important; color: #245d7e !important; border: 1px solid #383838; }
+
+  .spinner-border { animation-duration: .75s; }
+  .page-view.active { animation: mdPageEnter 220ms ease both; }
+  .modal.show .modal-dialog { animation: mdModalEnter 190ms ease both; }
+
+  @keyframes mdPageEnter {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes mdModalEnter {
+    from { opacity: 0; transform: translateY(12px) scale(.985); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .md-kitchen-hero,
+    .login-form-wrap,
+    .modal-content { box-shadow: 4px 4px 0 #383838 !important; }
+
+    .metric-card,
+    .quick-action-card,
+    .stock-item-card,
+    .purchase-card,
+    .task-card,
+    .production-card { box-shadow: 2px 2px 0 #383838 !important; }
+  }
+</style>
