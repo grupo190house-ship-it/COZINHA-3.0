@@ -1,31 +1,53 @@
 <section id="view-dashboard" class="page-view active">
-  <div class="page-head operational-head">
-    <div>
-      <span class="eyebrow">Operação de hoje</span>
-      <h1>Início</h1>
-      <p id="dashboardGreeting">Veja rapidamente o que precisa da sua atenção.</p>
+  <section class="md-kitchen-hero" aria-labelledby="dashboardTitle">
+    <div class="md-kitchen-copy">
+      <span class="md-kicker">Central de produção ao vivo</span>
+      <h1 id="dashboardTitle">Respostas rápidas para uma cozinha em movimento.</h1>
+      <p id="dashboardGreeting">Veja o que precisa de ação, registre a operação e mantenha produção, estoque e perdas sob controle.</p>
+      <div class="md-hero-refresh">
+        <button id="refreshDashboard" class="btn btn-primary"><span class="material-symbols-rounded">refresh</span>Atualizar operação</button>
+      </div>
     </div>
-    <button id="refreshDashboard" class="btn btn-light"><span class="material-symbols-rounded">refresh</span>Atualizar</button>
-  </div>
+    <div class="md-kitchen-art" aria-hidden="true">
+      <svg viewBox="0 0 420 300" role="img">
+        <path d="M78 205h266v24c0 29-24 52-53 52H131c-29 0-53-23-53-52v-24Z" fill="#fffdf8" stroke="#292825" stroke-width="5"/>
+        <path d="M104 205c4-58 48-102 105-102s101 44 106 102" fill="#ffe44f" stroke="#292825" stroke-width="5"/>
+        <path d="M151 103c4-30 26-55 58-55 31 0 54 25 58 55" fill="#fffdf8" stroke="#292825" stroke-width="5"/>
+        <path d="M184 48c-8-17 6-33 26-31 18 1 28 18 22 34" fill="#ff8a3d" stroke="#292825" stroke-width="5"/>
+        <path d="M70 191h278" stroke="#292825" stroke-width="7" stroke-linecap="round"/>
+        <circle cx="151" cy="165" r="8" fill="#292825"/>
+        <circle cx="268" cy="165" r="8" fill="#292825"/>
+        <path d="M180 174c15 16 44 16 59 0" fill="none" stroke="#292825" stroke-width="5" stroke-linecap="round"/>
+        <path d="M50 156c-25-3-36 24-15 37 16 10 33-1 33-19" fill="#73c69c" stroke="#292825" stroke-width="5"/>
+        <path d="M367 100c25 2 35 27 16 40-16 11-35 1-36-18" fill="#bca7ef" stroke="#292825" stroke-width="5"/>
+        <path d="M342 238h42" stroke="#292825" stroke-width="5" stroke-linecap="round"/>
+        <path d="M362 218v40" stroke="#292825" stroke-width="5" stroke-linecap="round"/>
+        <path d="M37 67h58" stroke="#292825" stroke-width="5" stroke-linecap="round"/>
+        <path d="M66 38v58" stroke="#292825" stroke-width="5" stroke-linecap="round"/>
+        <rect x="289" y="42" width="91" height="43" rx="5" fill="#fffdf8" stroke="#292825" stroke-width="4" transform="rotate(5 289 42)"/>
+        <text x="304" y="69" fill="#292825" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="700">EM ORDEM</text>
+      </svg>
+    </div>
+  </section>
 
   <section class="quick-actions-section" aria-label="Ações rápidas">
     <div class="quick-actions-head">
-      <div><h2>O que você precisa fazer?</h2><p>Abra a operação certa com um toque.</p></div>
+      <div><h2>O que precisa acontecer agora?</h2><p>Abra a operação certa com um toque.</p></div>
     </div>
     <div class="quick-actions-grid">
-      <button type="button" class="quick-action-card" style="--action-color:#0c66e4" data-quick-action="production">
+      <button type="button" class="quick-action-card" style="--action-color:#1686d9" data-quick-action="production">
         <span class="quick-action-icon"><span class="material-symbols-rounded">play_circle</span></span>
         <span><strong>Iniciar produção</strong><small>Separar insumo e começar um novo lote.</small></span>
       </button>
-      <button type="button" class="quick-action-card" style="--action-color:#e34935" data-quick-action="loss">
+      <button type="button" class="quick-action-card" style="--action-color:#c84237" data-quick-action="loss">
         <span class="quick-action-icon"><span class="material-symbols-rounded">delete_sweep</span></span>
         <span><strong>Registrar perda</strong><small>Informar item, quantidade e motivo.</small></span>
       </button>
-      <button type="button" class="quick-action-card" style="--action-color:#16a36a" data-quick-action="stock">
+      <button type="button" class="quick-action-card" style="--action-color:#2e9c68" data-quick-action="stock">
         <span class="quick-action-icon"><span class="material-symbols-rounded">move_to_inbox</span></span>
         <span><strong>Entrada no estoque</strong><small>Adicionar insumo recebido ao saldo.</small></span>
       </button>
-      <button type="button" class="quick-action-card" style="--action-color:#7a5af8" data-quick-action="task">
+      <button type="button" class="quick-action-card" style="--action-color:#7d62c4" data-quick-action="task">
         <span class="quick-action-icon"><span class="material-symbols-rounded">add_task</span></span>
         <span><strong>Criar tarefa</strong><small>Passar uma atividade para a equipe.</small></span>
       </button>
@@ -33,25 +55,25 @@
   </section>
 
   <div class="metric-grid operational-metrics">
-    <article class="metric-card card-surface" style="--metric-color:#e34d59"><div class="metric-icon"><span class="material-symbols-rounded">production_quantity_limits</span></div><span class="metric-label">Abaixo do mínimo</span><strong id="metricLowStock" class="metric-value">—</strong><small id="metricLowStockDetail" class="metric-detail">insumos</small></article>
-    <article class="metric-card card-surface" style="--metric-color:#16a36a"><div class="metric-icon"><span class="material-symbols-rounded">today</span></div><span class="metric-label">Produzido hoje</span><strong id="metricProductionToday" class="metric-value">—</strong><small id="metricProductionTodayDetail" class="metric-detail">carregando...</small></article>
-    <article class="metric-card card-surface" style="--metric-color:#e98b23"><div class="metric-icon"><span class="material-symbols-rounded">pending_actions</span></div><span class="metric-label">Em produção</span><strong id="metricProductionsInProgress" class="metric-value">—</strong><small id="metricProductionsInProgressDetail" class="metric-detail">produções abertas</small></article>
-    <article class="metric-card card-surface" style="--metric-color:#3182f6"><div class="metric-icon"><span class="material-symbols-rounded">package_2</span></div><span class="metric-label">Produtos com saldo</span><strong id="metricProductsInStock" class="metric-value">—</strong><small class="metric-detail">itens disponíveis</small></article>
-    <article class="metric-card card-surface" style="--metric-color:#7868f2"><div class="metric-icon"><span class="material-symbols-rounded">shopping_cart</span></div><span class="metric-label">Itens para comprar</span><strong id="metricPurchases" class="metric-value">—</strong><small class="metric-detail">solicitações pendentes</small></article>
-    <article class="metric-card card-surface" style="--metric-color:#e34d59"><div class="metric-icon"><span class="material-symbols-rounded">delete_sweep</span></div><span class="metric-label">Valor das perdas hoje</span><strong id="metricLossesToday" class="metric-value">—</strong><small id="metricLossesTodayDetail" class="metric-detail">carregando...</small></article>
+    <article class="metric-card card-surface" style="--metric-color:#f2685b"><div class="metric-icon"><span class="material-symbols-rounded">production_quantity_limits</span></div><span class="metric-label">Abaixo do mínimo</span><strong id="metricLowStock" class="metric-value">—</strong><small id="metricLowStockDetail" class="metric-detail">insumos</small></article>
+    <article class="metric-card card-surface" style="--metric-color:#73c69c"><div class="metric-icon"><span class="material-symbols-rounded">today</span></div><span class="metric-label">Produzido hoje</span><strong id="metricProductionToday" class="metric-value">—</strong><small id="metricProductionTodayDetail" class="metric-detail">carregando...</small></article>
+    <article class="metric-card card-surface" style="--metric-color:#ff8a3d"><div class="metric-icon"><span class="material-symbols-rounded">pending_actions</span></div><span class="metric-label">Em produção</span><strong id="metricProductionsInProgress" class="metric-value">—</strong><small id="metricProductionsInProgressDetail" class="metric-detail">produções abertas</small></article>
+    <article class="metric-card card-surface" style="--metric-color:#63b7f4"><div class="metric-icon"><span class="material-symbols-rounded">package_2</span></div><span class="metric-label">Produtos com saldo</span><strong id="metricProductsInStock" class="metric-value">—</strong><small class="metric-detail">itens disponíveis</small></article>
+    <article class="metric-card card-surface" style="--metric-color:#bca7ef"><div class="metric-icon"><span class="material-symbols-rounded">shopping_cart</span></div><span class="metric-label">Itens para comprar</span><strong id="metricPurchases" class="metric-value">—</strong><small class="metric-detail">solicitações pendentes</small></article>
+    <article class="metric-card card-surface" style="--metric-color:#ffe44f"><div class="metric-icon"><span class="material-symbols-rounded">delete_sweep</span></div><span class="metric-label">Perdas de hoje</span><strong id="metricLossesToday" class="metric-value">—</strong><small id="metricLossesTodayDetail" class="metric-detail">carregando...</small></article>
   </div>
 
   <div class="operational-grid">
     <article class="card-surface p-3 p-md-4">
       <header class="panel-header">
-        <div><span class="eyebrow">Atenção</span><h2 class="panel-title">Estoque baixo</h2></div>
+        <div><span class="eyebrow">Precisa de atenção</span><h2 class="panel-title">Estoque baixo</h2></div>
         <button class="btn btn-sm btn-light" data-navigate="compras">Abrir compras</button>
       </header>
       <div id="dashboardLowStock" class="operation-list"></div>
     </article>
     <article class="card-surface p-3 p-md-4">
       <header class="panel-header">
-        <div><span class="eyebrow">Andamento</span><h2 class="panel-title">Produções abertas</h2></div>
+        <div><span class="eyebrow">Em andamento</span><h2 class="panel-title">Produções abertas</h2></div>
         <button class="btn btn-sm btn-light" data-navigate="producao">Ver produção</button>
       </header>
       <div id="dashboardProductions" class="operation-list"></div>
