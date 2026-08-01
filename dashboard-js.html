@@ -71,14 +71,13 @@
           min-height: 16px;
           margin-top: 4px;
           overflow: hidden;
-          color: #626f86;
+          color: #7b7e92;
           font-size: 11px;
           font-weight: 600;
           line-height: 1.35;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        [data-theme="dark"] #view-dashboard .metric-detail { color: #9fadbc; }
         @media (max-width: 600px) {
           #view-dashboard .metric-detail { font-size: 10px; white-space: normal; }
         }
@@ -203,7 +202,11 @@
       document.getElementById('metricProductionsInProgressDetail').textContent = `${UI.number(cards.productionsInProgress || 0)} ${(cards.productionsInProgress || 0) === 1 ? 'produção aberta' : 'produções abertas'}`;
       document.getElementById('metricLossesTodayDetail').textContent = `${UI.number(cards.lossesTodayCount || 0)} ${(cards.lossesTodayCount || 0) === 1 ? 'perda registrada' : 'perdas registradas'}`;
 
-      document.getElementById('dashboardGreeting').textContent = `Olá, ${App.state.user.name.split(' ')[0]}. Resumo de ${UI.date(data.date)}.`;
+      const firstName = App.state.user?.name?.split(/\s+/)[0] || 'equipe';
+      const nameNode = document.getElementById('dashboardUserName');
+      if (nameNode) nameNode.textContent = firstName;
+      document.getElementById('dashboardGreeting').textContent = `Resumo de ${UI.date(data.date)}. Veja os indicadores e as pendências da operação.`;
+
       document.getElementById('dashboardLowStock').innerHTML = data.lowStock.length
         ? data.lowStock.map(item => `
           <div class="operation-row">
