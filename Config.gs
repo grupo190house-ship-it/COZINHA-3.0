@@ -3,7 +3,7 @@
  * Todas as abas são criadas e mantidas por setupSystem().
  */
 var APP_CONFIG = Object.freeze({
-  APP_NAME: 'CozinhaFlow ERP',
+  APP_NAME: 'CozinhaFlow Tarefas',
   COMPANY_NAME: 'Minha Cozinha Industrial',
   VERSION: '1.5.0',
   TIMEZONE: 'America/Sao_Paulo',
@@ -45,12 +45,12 @@ var SHEETS = Object.freeze({
 var ROLES = Object.freeze(['Administrador', 'Supervisor', 'Operador', 'Comprador', 'Financeiro', 'Consulta']);
 
 var ACL = Object.freeze({
-  Administrador: ['*'],
-  Supervisor: ['dashboard', 'tarefas', 'estoque', 'insumos', 'produtos', 'producoes', 'perdas', 'inventarios', 'compras', 'fornecedores', 'operadores', 'relatorios', 'auditoria', 'notificacoes'],
-  Operador: ['dashboard', 'tarefas', 'estoque', 'insumos', 'produtos', 'producoes', 'perdas', 'inventarios', 'notificacoes'],
-  Comprador: ['dashboard', 'estoque', 'insumos', 'compras', 'fornecedores', 'relatorios', 'notificacoes'],
-  Financeiro: ['dashboard', 'estoque', 'produtos', 'compras', 'fornecedores', 'relatorios', 'notificacoes'],
-  Consulta: ['dashboard', 'estoque', 'insumos', 'produtos', 'producoes', 'compras', 'fornecedores', 'inventarios', 'perdas', 'relatorios', 'notificacoes']
+  Administrador: ['tarefas', 'operadores', 'notificacoes'],
+  Supervisor: ['tarefas', 'notificacoes'],
+  Operador: ['tarefas', 'notificacoes'],
+  Comprador: ['tarefas', 'notificacoes'],
+  Financeiro: ['tarefas', 'notificacoes'],
+  Consulta: ['tarefas', 'notificacoes']
 });
 
 var ENUMS = Object.freeze({

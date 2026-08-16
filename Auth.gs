@@ -186,11 +186,11 @@ function requireAccess_(user, resource, mutate) {
   }
   if (!mutate || user.PERFIL === 'Administrador') return true;
   var writeAcl = {
-    Supervisor: ['dashboard', 'tarefas', 'estoque', 'insumos', 'produtos', 'producoes', 'perdas', 'inventarios', 'compras', 'fornecedores', 'operadores', 'relatorios', 'notificacoes'],
-    Operador: ['tarefas', 'producoes', 'perdas', 'inventarios'],
-    Comprador: ['dashboard', 'compras', 'fornecedores', 'notificacoes'],
-    Financeiro: ['dashboard', 'compras', 'notificacoes'],
-    Consulta: ['dashboard']
+    Supervisor: ['tarefas', 'notificacoes'],
+    Operador: ['tarefas', 'notificacoes'],
+    Comprador: ['tarefas', 'notificacoes'],
+    Financeiro: ['tarefas', 'notificacoes'],
+    Consulta: ['tarefas', 'notificacoes']
   };
   if ((writeAcl[user.PERFIL] || []).indexOf(resource) < 0) {
     var writeError = new Error('Seu perfil possui acesso somente para consulta nesta operação.');

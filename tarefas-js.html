@@ -37,6 +37,11 @@
       const assigneeFilter = document.getElementById('taskAssigneeFilter');
       newButton.classList.toggle('d-none', !isAdmin());
       assigneeFilter.classList.toggle('d-none', !isAdmin());
+      document.getElementById('taskPageEyebrow').textContent = isAdmin() ? 'Rotina da equipe' : 'Meu trabalho';
+      document.getElementById('taskPageTitle').textContent = isAdmin() ? 'Tarefas da equipe' : 'Minhas tarefas';
+      document.getElementById('taskPageDescription').textContent = isAdmin()
+        ? 'Distribua o trabalho, acompanhe o andamento e confira a foto enviada pelo funcionário.'
+        : 'Veja o que precisa ser feito, inicie a atividade e envie uma foto ao concluir.';
       if (isAdmin()) {
         assigneeFilter.innerHTML = '<option value="">Todos os operadores</option>' +
           assignees.map(item => `<option value="${UI.esc(item.id)}">${UI.esc(item.name)} · ${UI.esc(item.role)}</option>`).join('');

@@ -17,6 +17,8 @@ function compose() {
     .replace(/<\?= appName \?>/g, 'CozinhaFlow ERP')
     .replace(/<\?= version \?>/g, '1.5.0');
   const mock = `<script>
+    window.__COZINHA_PREVIEW__ = true;
+    const previewWorkerMode = new URLSearchParams(location.search).get('role') === 'operator';
     if(location.search.includes('login=1') || location.pathname.includes('login-preview')) {
       localStorage.removeItem('cozinhaflow_token');
       sessionStorage.removeItem('cozinhaflow_token');
@@ -83,14 +85,21 @@ function compose() {
       'tarefas.list':[
         {ID:'t1',TITULO:'Limpar o forno industrial',DESCRICAO:'Retirar as grades, aplicar o desengordurante e limpar também a parte externa.',RESPONSAVEL_ID:'u2',RESPONSAVEL_NOME:'Lucas Almeida',PRIORIDADE:'Urgente',PRAZO:'2026-07-29T16:00',STATUS:'A fazer',CRIADO_POR_NOME:'Marina Souza',INICIADO_EM:'',CONCLUIDO_EM:'',OBSERVACAO_CONCLUSAO:'',TEM_FOTO:false,CRIADO_EM:previewNow},
         {ID:'t2',TITULO:'Conferir etiquetas da câmara fria',DESCRICAO:'Verificar validade e identificação dos recipientes abertos.',RESPONSAVEL_ID:'u3',RESPONSAVEL_NOME:'Paulo Lima',PRIORIDADE:'Alta',PRAZO:'2026-07-29T15:30',STATUS:'Em andamento',CRIADO_POR_NOME:'Marina Souza',INICIADO_EM:'2026-07-29T13:10:00',CONCLUIDO_EM:'',OBSERVACAO_CONCLUSAO:'',TEM_FOTO:false,CRIADO_EM:previewNow},
+        {ID:'t4',TITULO:'Organizar a bancada de preparo',DESCRICAO:'Retirar itens sem uso e deixar a bancada pronta para o próximo turno.',RESPONSAVEL_ID:'u2',RESPONSAVEL_NOME:'Lucas Almeida',PRIORIDADE:'Alta',PRAZO:'2026-08-17T18:00',STATUS:'Em andamento',CRIADO_POR_NOME:'Marina Souza',INICIADO_EM:previewNow,CONCLUIDO_EM:'',OBSERVACAO_CONCLUSAO:'',TEM_FOTO:false,CRIADO_EM:previewNow},
         {ID:'t3',TITULO:'Higienizar bancada de montagem',DESCRICAO:'',RESPONSAVEL_ID:'u2',RESPONSAVEL_NOME:'Lucas Almeida',PRIORIDADE:'Normal',PRAZO:'2026-07-29T11:00',STATUS:'Concluída',CRIADO_POR_NOME:'Marina Souza',INICIADO_EM:'2026-07-29T10:00:00',CONCLUIDO_EM:'2026-07-29T10:35:00',OBSERVACAO_CONCLUSAO:'Bancada liberada para o próximo turno.',TEM_FOTO:true,CRIADO_EM:previewNow}
+      ],
+      'usuarios.list':[
+        {id:'u1',name:'Marina Souza',email:'admin@cozinha.local',role:'Administrador',status:'Ativo',lastAccess:previewNow},
+        {id:'u2',name:'Lucas Almeida',email:'lucas@cozinha.local',role:'Operador',status:'Ativo',lastAccess:previewNow},
+        {id:'u3',name:'Paulo Lima',email:'paulo@cozinha.local',role:'Supervisor',status:'Ativo',lastAccess:previewNow}
       ]
     };
     const mockData = action => {
-      if(action==='session.me') return {user:{id:'u1',name:'Marina Souza',email:'admin@cozinha.local',role:'Administrador',status:'Ativo'},acl:['*'],config:{APP_NAME:'CozinhaFlow ERP',COMPANY_NAME:'Cozinha Industrial Aurora',CURRENCY:'BRL',VERSION:'1.5.0'},enums:{},notifications:[{TITULO:'Estoque baixo',MENSAGEM:'Farinha de trigo atingiu o estoque mínimo.',SEVERIDADE:'warning'}]};
+      if(action==='session.me') return {user:previewWorkerMode?{id:'u2',name:'Lucas Almeida',email:'lucas@cozinha.local',role:'Operador',status:'Ativo'}:{id:'u1',name:'Marina Souza',email:'admin@cozinha.local',role:'Administrador',status:'Ativo'},acl:previewWorkerMode?['tarefas','notificacoes']:['tarefas','operadores','notificacoes'],config:{APP_NAME:'CozinhaFlow ERP',COMPANY_NAME:'Cozinha Industrial Aurora',CURRENCY:'BRL',VERSION:'1.5.0'},enums:{},notifications:[]};
       if(action==='lookups.get') return previewLookups;
       if(action==='dashboard.get') return previewDashboard;
       if(action==='compras.refresh') return {created:0,updated:2};
+      if(action==='tarefas.list' && previewWorkerMode) return previewRows[action].filter(row=>row.RESPONSAVEL_ID==='u2');
       return previewRows[action] || [];
     };
     const makeRunner=(success,failure)=>new Proxy({},{
@@ -110,9 +119,18 @@ function compose() {
 }
 
 http.createServer((request, response) => {
-  if (request.url === '/' || request.url === '/index.html') {
+  const pathname = new URL(request.url, `http://${request.headers.host || '127.0.0.1'}`).pathname;
+  if (pathname === '/' || pathname === '/index.html') {
     response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     response.end(compose());
+    return;
+  }
+  const relative = decodeURIComponent(pathname).replace(/^\/+/, '');
+  const filePath = path.resolve(root, relative);
+  if (filePath.startsWith(root + path.sep) && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    const type = path.extname(filePath) === '.html' ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8';
+    response.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+    response.end(fs.readFileSync(filePath));
     return;
   }
   response.writeHead(404);

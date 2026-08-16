@@ -1,8 +1,8 @@
-# CozinhaFlow ERP
+# CozinhaFlow Tarefas
 
-ERP mobile-first para cozinhas industriais, desenvolvido em Google Apps Script com Google Sheets e Google Drive como infraestrutura.
+Aplicativo mobile-first para distribuir e acompanhar tarefas da equipe. Os dados ficam no Firebase ou Google Sheets, conforme a implantação atual, e as fotos de conclusão continuam armazenadas no Google Drive.
 
-O sistema reúne estoque, produção, perdas, compras, inventário, equipe e um quadro de tarefas no estilo Trello. O administrador escreve qualquer atividade, escolhe o operador e define prioridade e prazo. O operador recebe apenas as próprias tarefas e só conclui depois de confirmar a execução e enviar uma foto.
+O administrador escreve a atividade, escolhe o funcionário e define prioridade e prazo. Cada funcionário recebe apenas as próprias tarefas e só conclui depois de confirmar a execução e enviar uma foto.
 
 ## Principais recursos
 
@@ -10,12 +10,10 @@ O sistema reúne estoque, produção, perdas, compras, inventário, equipe e um 
 - Navegação por listas no celular, sem cartões ultrapassando a tela.
 - Tarefas livres: o texto digitado pelo administrador vira a atividade.
 - Confirmação de execução com usuário, data, hora e foto obrigatória.
-- Cadastro de insumos com preço atual e custo médio.
-- Perdas calculadas pelo custo unitário médio do item.
-- Produção com quantidade consumida, pacotes produzidos, pacotes por kg e aproveitamento.
-- Custo dos produtos calculado pela média dos insumos consumidos.
-- Controle de lotes, validade, compras, fornecedores, inventários e auditoria.
-- Perfis de acesso: Administrador, Supervisor, Operador, Comprador, Financeiro e Consulta.
+- Cadastro de funcionários pelo administrador.
+- Cada funcionário visualiza somente as tarefas atribuídas a ele.
+- Fotos de conclusão armazenadas no Google Drive pelo fluxo já configurado.
+- Perfis principais: Administrador, Supervisor e Funcionário.
 - Interface responsiva com navegação inferior no celular.
 
 ## Tecnologia

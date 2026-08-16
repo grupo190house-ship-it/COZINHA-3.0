@@ -1,0 +1,101 @@
+<script>
+  (() => {
+    let users = [];
+    let bound = false;
+
+    const roleLabel = role => ({
+      Administrador: 'Administrador',
+      Supervisor: 'Supervisor',
+      Operador: 'Funcionário'
+    }[role] || role);
+
+    async function load() {
+      if (App.state.user?.role !== 'Administrador') {
+        await App.navigate('tarefas');
+        return;
+      }
+      if (!bound) bind();
+      document.getElementById('usersTable').innerHTML = UI.skeleton(4);
+      users = await App.server('usuarios.list');
+      render();
+    }
+
+    function render() {
+      const activeWorkers = users.filter(user => user.status === 'Ativo' && ['Operador', 'Supervisor'].includes(user.role));
+      document.getElementById('teamActiveCount').textContent = activeWorkers.length;
+      document.getElementById('teamSupervisorCount').textContent = activeWorkers.filter(user => user.role === 'Supervisor').length;
+      UI.renderTable('usersTable', users, [
+        { key: 'name', label: 'Nome', render: value => `<strong>${UI.esc(value)}</strong>` },
+        { key: 'email', label: 'Email' },
+        { key: 'role', label: 'Acesso', render: value => UI.badge(roleLabel(value)) },
+        { key: 'status', label: 'Status', render: UI.badge },
+        { key: 'lastAccess', label: 'Último acesso', render: UI.date },
+        { key: '_actions', label: 'Ações', render: (_, row) => UI.actionButton('edit', 'Editar', 'edit', row.id) }
+      ], {
+        exportName: 'equipe',
+        onAction: (_, __, row) => openForm(row)
+      });
+    }
+
+    function roleOptions(selected) {
+      return [
+        ['Operador', 'Funcionário'],
+        ['Supervisor', 'Supervisor'],
+        ['Administrador', 'Administrador']
+      ].map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`).join('');
+    }
+
+    function openForm(user = {}) {
+      const editing = !!user.id;
+      UI.openModal({
+        title: editing ? 'Editar funcionário' : 'Novo funcionário',
+        eyebrow: 'Acesso às tarefas',
+        formId: 'modalForm',
+        submitText: editing ? 'Salvar alterações' : 'Criar acesso',
+        body: `
+          <form id="modalForm" class="row g-3">
+            <input type="hidden" name="ID" value="${UI.esc(user.id || '')}">
+            <div class="col-md-6">
+              <label class="form-label">Nome</label>
+              <input name="NOME" class="form-control" maxlength="120" value="${UI.esc(user.name || '')}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email de acesso</label>
+              <input name="EMAIL" type="email" class="form-control" value="${UI.esc(user.email || '')}" ${editing ? 'readonly' : ''} required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tipo de acesso</label>
+              <select name="PERFIL" class="form-select" required>${roleOptions(user.role || 'Operador')}</select>
+              <small class="form-text text-secondary">Funcionários veem somente as próprias tarefas. Supervisores também podem receber tarefas.</small>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <select name="STATUS" class="form-select">
+                <option ${user.status !== 'Inativo' ? 'selected' : ''}>Ativo</option>
+                <option ${user.status === 'Inativo' ? 'selected' : ''}>Inativo</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">${editing ? 'Nova senha (deixe vazio para manter)' : 'Senha inicial'}</label>
+              <input name="SENHA" type="password" class="form-control" minlength="8" ${editing ? '' : 'required'} autocomplete="new-password">
+              <small class="form-text text-secondary">Informe a senha ao funcionário para que ele faça o primeiro acesso.</small>
+            </div>
+          </form>`,
+        onSubmit: async form => {
+          await App.server('usuarios.save', form);
+          UI.toast(editing ? 'Funcionário atualizado.' : 'Acesso do funcionário criado.');
+          App.state.lookups = await App.server('lookups.get');
+          await load();
+        }
+      });
+    }
+
+    function bind() {
+      bound = true;
+      document.getElementById('newUserButton').onclick = () => openForm();
+      document.getElementById('refreshUsersButton').onclick = load;
+    }
+
+    window.ModuleLoaders.operadores = load;
+  })();
+</script>

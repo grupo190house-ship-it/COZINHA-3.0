@@ -57,6 +57,16 @@
 
   body::before { display: none !important; }
 
+  .topbar-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--cg-text);
+  }
+
+  .topbar-title .material-symbols-rounded { color: var(--cg-purple); }
+  .team-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 620px; }
+
   h1, h2, h3, h4, h5, h6,
   .modal-title,
   .panel-title,
