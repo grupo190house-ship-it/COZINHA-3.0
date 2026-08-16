@@ -27,7 +27,7 @@
   <script>
     (() => {
       'use strict';
-      const ASSET_VERSION = '20260816-tarefas-v1';
+      const ASSET_VERSION = '20260816-mobile-v2';
       localStorage.setItem('cozinhaflow_theme', 'light');
 
       const stopZoom = event => event.preventDefault();
@@ -78,7 +78,8 @@
           productionCompact,
           stockCompact,
           mobileMenuFix,
-          cangeTheme
+          cangeTheme,
+          taskMobileRedesign
         ] = await Promise.all([
           fetchText('styles.html'),
           fetchText('theme.html'),
@@ -91,12 +92,13 @@
           fetchText('producao-compact.html'),
           fetchText('estoque-compact-style.html'),
           fetchText('mobile-menu-fix.html'),
-          fetchText('cange-theme.html')
+          fetchText('cange-theme.html'),
+          fetchText('task-mobile-redesign.html')
         ]);
 
         document.head.insertAdjacentHTML(
           'beforeend',
-          styles + theme + trelloTheme + mobilePolish + mobileV2 + productionStyle + lossesStyle + simpleModern + productionCompact + stockCompact + mobileMenuFix + cangeTheme +
+          styles + theme + trelloTheme + mobilePolish + mobileV2 + productionStyle + lossesStyle + simpleModern + productionCompact + stockCompact + mobileMenuFix + cangeTheme + taskMobileRedesign +
           '<style>html,body{touch-action:pan-x pan-y}@media(max-width:900px){input,select,textarea,.form-control,.form-select{font-size:16px!important}}.firebase-status{position:fixed;right:14px;bottom:72px;z-index:1085;padding:7px 11px;border:1px solid #e8e7f0;border-radius:999px;background:#fff;color:#5f6275;font:650 10px Inter,sans-serif;box-shadow:0 7px 22px rgba(48,39,82,.08);pointer-events:none}.firebase-status::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#22c55e}@media(min-width:901px){.firebase-status{bottom:14px}}</style>'
         );
 

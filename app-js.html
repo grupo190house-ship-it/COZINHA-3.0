@@ -50,6 +50,7 @@
     }
     function renderShell() {
       const config = state.config;
+      document.body.dataset.userRole = state.user.role;
       const configuredName = config.APP_NAME || '';
       document.getElementById('sidebarAppName').textContent = !configuredName || configuredName === 'CozinhaFlow ERP'
         ? 'CozinhaFlow Tarefas'
