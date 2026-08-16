@@ -31,10 +31,22 @@
     </article>
   </div>
 
+  <div id="taskMobileTabs" class="task-mobile-tabs" role="tablist" aria-label="Etapas das tarefas">
+    <button type="button" class="task-mobile-tab todo active" role="tab" aria-selected="true" data-task-mobile-status="A fazer">
+      <span>A fazer</span><strong id="taskMobileTodoCount">0</strong>
+    </button>
+    <button type="button" class="task-mobile-tab doing" role="tab" aria-selected="false" data-task-mobile-status="Em andamento">
+      <span>Em andamento</span><strong id="taskMobileDoingCount">0</strong>
+    </button>
+    <button type="button" class="task-mobile-tab done" role="tab" aria-selected="false" data-task-mobile-status="Concluída">
+      <span>Concluídas</span><strong id="taskMobileDoneCount">0</strong>
+    </button>
+  </div>
+
   <div class="task-toolbar card-surface">
     <div class="input-icon task-search">
       <span class="material-symbols-rounded">search</span>
-      <input id="taskSearch" class="form-control" type="search" autocomplete="off" placeholder="Buscar tarefa, descrição ou operador...">
+      <input id="taskSearch" class="form-control" type="search" autocomplete="off" placeholder="Buscar tarefas...">
     </div>
     <select id="taskAssigneeFilter" class="form-select d-none">
       <option value="">Todos os operadores</option>
@@ -49,19 +61,12 @@
     <button id="refreshTasksButton" class="btn btn-light" type="button">
       <span class="material-symbols-rounded">refresh</span>Atualizar
     </button>
+    <button id="taskFilterButton" class="btn btn-light task-filter-button" type="button">
+      <span class="material-symbols-rounded">tune</span><span>Filtros</span><strong id="taskFilterCount" class="d-none">0</strong>
+    </button>
   </div>
 
-  <div id="taskMobileTabs" class="task-mobile-tabs" role="tablist" aria-label="Etapas das tarefas">
-    <button type="button" class="task-mobile-tab todo active" role="tab" aria-selected="true" data-task-mobile-status="A fazer">
-      <span>A fazer</span><strong id="taskMobileTodoCount">0</strong>
-    </button>
-    <button type="button" class="task-mobile-tab doing" role="tab" aria-selected="false" data-task-mobile-status="Em andamento">
-      <span>Em andamento</span><strong id="taskMobileDoingCount">0</strong>
-    </button>
-    <button type="button" class="task-mobile-tab done" role="tab" aria-selected="false" data-task-mobile-status="Concluída">
-      <span>Concluídas</span><strong id="taskMobileDoneCount">0</strong>
-    </button>
-  </div>
+  <div id="taskActiveFilters" class="task-active-filters d-none" aria-live="polite"></div>
 
   <div id="taskBoard" class="task-board" aria-live="polite"></div>
 

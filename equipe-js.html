@@ -24,6 +24,7 @@
       const activeWorkers = users.filter(user => user.status === 'Ativo' && ['Operador', 'Supervisor'].includes(user.role));
       document.getElementById('teamActiveCount').textContent = activeWorkers.length;
       document.getElementById('teamSupervisorCount').textContent = activeWorkers.filter(user => user.role === 'Supervisor').length;
+      renderMobileList();
       UI.renderTable('usersTable', users, [
         { key: 'name', label: 'Nome', render: value => `<strong>${UI.esc(value)}</strong>` },
         { key: 'email', label: 'Email' },
@@ -34,6 +35,37 @@
       ], {
         exportName: 'equipe',
         onAction: (_, __, row) => openForm(row)
+      });
+    }
+
+    function initials(name = '') {
+      return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'FU';
+    }
+
+    function renderMobileList() {
+      const list = document.getElementById('usersMobileList');
+      if (!users.length) {
+        list.innerHTML = '<div class="team-mobile-empty"><span class="material-symbols-rounded">group_off</span><strong>Nenhum funcionário cadastrado</strong></div>';
+        return;
+      }
+      list.innerHTML = users.map(user => `
+        <article class="team-mobile-card">
+          <div class="team-mobile-avatar">${UI.esc(initials(user.name))}</div>
+          <div class="team-mobile-person">
+            <strong>${UI.esc(user.name)}</strong>
+            <span>${UI.esc(user.email)}</span>
+          </div>
+          <button class="team-mobile-edit" type="button" data-user-id="${UI.esc(user.id)}" aria-label="Editar ${UI.esc(user.name)}">
+            <span class="material-symbols-rounded">edit</span>
+          </button>
+          <div class="team-mobile-meta">
+            <span>${UI.badge(roleLabel(user.role))}</span>
+            <span>${UI.badge(user.status)}</span>
+            <small>Último acesso <strong>${UI.date(user.lastAccess)}</strong></small>
+          </div>
+        </article>`).join('');
+      list.querySelectorAll('[data-user-id]').forEach(button => {
+        button.onclick = () => openForm(users.find(user => user.id === button.dataset.userId));
       });
     }
 

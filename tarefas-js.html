@@ -42,6 +42,8 @@
       document.getElementById('taskPageDescription').textContent = isAdmin()
         ? 'Distribua o trabalho, acompanhe o andamento e confira a foto enviada pelo funcionário.'
         : 'Veja o que precisa ser feito, inicie a atividade e envie uma foto ao concluir.';
+      const topbarTitle = document.querySelector('.topbar-title strong');
+      if (topbarTitle) topbarTitle.textContent = isAdmin() ? 'Tarefas da equipe' : 'Minhas tarefas';
       if (isAdmin()) {
         assigneeFilter.innerHTML = '<option value="">Todos os operadores</option>' +
           assignees.map(item => `<option value="${UI.esc(item.id)}">${UI.esc(item.name)} · ${UI.esc(item.role)}</option>`).join('');
@@ -80,9 +82,11 @@
           </section>`;
       }).join('');
       renderMobileTabs(visible);
+      renderActiveFilters();
 
       const canceled = visible.filter(task => task.STATUS === 'Cancelada');
       document.getElementById('taskArchiveCount').textContent = canceled.length;
+      document.getElementById('taskArchivePanel').classList.toggle('task-archive-empty', canceled.length === 0);
       document.getElementById('taskArchiveList').innerHTML = canceled.length
         ? canceled.map(taskCard).join('')
         : UI.empty('Nenhuma tarefa cancelada.');
@@ -113,6 +117,8 @@
 
     function taskCard(task) {
       const overdue = isOverdue(task);
+      const completed = task.STATUS === 'Concluída';
+      const initials = String(task.RESPONSAVEL_NOME || '?').trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
       const description = task.DESCRICAO
         ? `<p class="task-card-description">${UI.esc(task.DESCRICAO)}</p>`
         : '';
@@ -134,17 +140,21 @@
         actions.push(taskAction('replay', 'Reabrir', 'reopen', task.ID, 'light', true));
       }
       return `
-        <article class="task-card ${overdue ? 'is-overdue' : ''}" data-task-id="${UI.esc(task.ID)}">
+        <article class="task-card ${overdue ? 'is-overdue' : ''} ${completed ? 'is-completed' : ''}" data-task-id="${UI.esc(task.ID)}">
           <div class="task-card-top">
             <span class="task-priority ${priorityTone(task.PRIORIDADE)}"><span></span>${UI.esc(task.PRIORIDADE || 'Normal')}</span>
             ${overdue ? '<span class="task-overdue-label"><span class="material-symbols-rounded">schedule</span>Atrasada</span>' : ''}
+            ${completed ? '<span class="task-completed-label"><span class="material-symbols-rounded">check_circle</span>Concluída</span>' : ''}
           </div>
           <h3>${UI.esc(task.TITULO)}</h3>
           ${description}
-          <div class="task-card-meta">
-            <span><span class="material-symbols-rounded">person</span>${UI.esc(task.RESPONSAVEL_NOME)}</span>
-            <span class="${overdue ? 'text-danger' : ''}"><span class="material-symbols-rounded">event</span>${task.PRAZO ? UI.date(task.PRAZO) : 'Sem prazo'}</span>
-            ${task.STATUS === 'Concluída' ? `<span class="text-success"><span class="material-symbols-rounded">check_circle</span>${UI.date(task.CONCLUIDO_EM)}</span>` : ''}
+          <div class="task-card-assignee">
+            <span class="task-assignee-avatar">${UI.esc(initials)}</span>
+            <div><small>Responsável</small><strong>${UI.esc(task.RESPONSAVEL_NOME)}</strong></div>
+          </div>
+          <div class="task-card-schedule">
+            <span class="${overdue ? 'is-danger' : ''}"><small>Prazo</small><strong><span class="material-symbols-rounded">event</span>${task.PRAZO ? UI.date(task.PRAZO) : 'Sem prazo'}</strong></span>
+            ${completed ? `<span class="is-success"><small>Concluída em</small><strong><span class="material-symbols-rounded">check_circle</span>${UI.date(task.CONCLUIDO_EM)}</strong></span>` : ''}
           </div>
           ${task.STATUS === 'Concluída' && task.OBSERVACAO_CONCLUSAO ? `<div class="task-completion-note"><strong>Observação:</strong> ${UI.esc(task.OBSERVACAO_CONCLUSAO)}</div>` : ''}
           ${actions.length ? `<div class="task-card-actions">${actions.join('')}</div>` : ''}
@@ -152,9 +162,54 @@
     }
 
     function taskAction(icon, label, action, id, tone, compact) {
-      return `<button type="button" class="btn btn-${tone} ${compact ? 'task-icon-action' : 'flex-grow-1'}" data-task-action="${action}" data-task-id="${UI.esc(id)}" title="${UI.esc(label)}">
-        <span class="material-symbols-rounded">${icon}</span>${compact ? '' : `<span>${UI.esc(label)}</span>`}
+      return `<button type="button" class="btn btn-${tone} ${compact ? 'task-icon-action' : 'task-primary-action flex-grow-1'}" data-task-action="${action}" data-task-id="${UI.esc(id)}" title="${UI.esc(label)}" aria-label="${UI.esc(label)}">
+        <span class="material-symbols-rounded">${icon}</span>${compact ? `<span class="task-compact-label">${UI.esc(label)}</span>` : `<span>${UI.esc(label)}</span>`}
       </button>`;
+    }
+
+    function renderActiveFilters() {
+      const host = document.getElementById('taskActiveFilters');
+      const assigneeId = document.getElementById('taskAssigneeFilter').value;
+      const priority = document.getElementById('taskPriorityFilter').value;
+      const chips = [];
+      if (assigneeId) {
+        const assignee = assignees.find(item => String(item.id) === String(assigneeId));
+        if (assignee) chips.push(`<button type="button" data-clear-task-filter="assignee">${UI.esc(assignee.name)}<span class="material-symbols-rounded">close</span></button>`);
+      }
+      if (priority) chips.push(`<button type="button" data-clear-task-filter="priority">${UI.esc(priority)}<span class="material-symbols-rounded">close</span></button>`);
+      host.innerHTML = chips.join('');
+      host.classList.toggle('d-none', !chips.length);
+      const count = chips.length;
+      const badge = document.getElementById('taskFilterCount');
+      badge.textContent = count;
+      badge.classList.toggle('d-none', count === 0);
+    }
+
+    function openTaskFilters() {
+      const currentAssignee = document.getElementById('taskAssigneeFilter').value;
+      const currentPriority = document.getElementById('taskPriorityFilter').value;
+      UI.openModal({
+        title: 'Filtrar tarefas',
+        eyebrow: 'Encontre mais rápido',
+        size: 'sm',
+        formId: 'taskFilterForm',
+        submitText: 'Aplicar filtros',
+        body: `<form id="taskFilterForm" class="row g-3">
+          ${isAdmin() ? `<div class="col-12"><label class="form-label">Funcionário</label><select name="assignee" class="form-select"><option value="">Todos os funcionários</option>${assignees.map(item => `<option value="${UI.esc(item.id)}" ${String(item.id) === String(currentAssignee) ? 'selected' : ''}>${UI.esc(item.name)}</option>`).join('')}</select></div>` : ''}
+          <div class="col-12"><label class="form-label">Prioridade</label><select name="priority" class="form-select"><option value="">Todas as prioridades</option>${['Urgente', 'Alta', 'Normal', 'Baixa'].map(value => `<option ${value === currentPriority ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+          <div class="col-12"><button id="clearTaskFiltersButton" type="button" class="btn btn-light w-100"><span class="material-symbols-rounded">filter_alt_off</span>Limpar filtros</button></div>
+        </form>`,
+        onSubmit: async form => {
+          document.getElementById('taskAssigneeFilter').value = form.assignee || '';
+          document.getElementById('taskPriorityFilter').value = form.priority || '';
+          render();
+        }
+      });
+      document.getElementById('clearTaskFiltersButton').onclick = () => {
+        const form = document.getElementById('taskFilterForm');
+        if (form.elements.assignee) form.elements.assignee.value = '';
+        form.elements.priority.value = '';
+      };
     }
 
     function openTaskForm(task = {}) {
@@ -242,7 +297,11 @@
             </div>
             <div class="col-12">
               <label class="form-label">Foto da atividade concluída</label>
-              <input id="taskEvidenceFile" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" class="form-control" required>
+              <input id="taskEvidenceFile" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" class="task-photo-input" required>
+              <label class="task-photo-picker" for="taskEvidenceFile">
+                <span class="material-symbols-rounded">photo_camera</span>
+                <span><strong>Tirar ou escolher foto</strong><small id="taskPhotoFileName">Nenhuma foto selecionada</small></span>
+              </label>
               <small class="form-text text-secondary">Tire uma foto nítida do resultado. Máximo de 5 MB.</small>
               <div id="taskPhotoPreview" class="task-photo-preview d-none"></div>
             </div>
@@ -275,8 +334,10 @@
       const input = document.getElementById('taskEvidenceFile');
       input.onchange = () => {
         const preview = document.getElementById('taskPhotoPreview');
+        const fileName = document.getElementById('taskPhotoFileName');
         const file = input.files?.[0];
-        if (!file) { preview.classList.add('d-none'); preview.innerHTML = ''; return; }
+        if (!file) { fileName.textContent = 'Nenhuma foto selecionada'; preview.classList.add('d-none'); preview.innerHTML = ''; return; }
+        fileName.textContent = file.name;
         const url = URL.createObjectURL(file);
         preview.innerHTML = `<img src="${url}" alt="Prévia da foto"><span>Foto selecionada</span>`;
         preview.classList.remove('d-none');
@@ -342,10 +403,18 @@
       bound = true;
       document.getElementById('newTaskButton').onclick = () => openTaskForm();
       document.getElementById('refreshTasksButton').onclick = load;
+      document.getElementById('taskFilterButton').onclick = openTaskFilters;
       document.getElementById('taskSearch').addEventListener('input', UI.debounce(render, 120));
       document.getElementById('taskAssigneeFilter').onchange = render;
       document.getElementById('taskPriorityFilter').onchange = render;
       document.getElementById('view-tarefas').addEventListener('click', event => {
+        const clearFilter = event.target.closest('[data-clear-task-filter]');
+        if (clearFilter) {
+          const filter = clearFilter.dataset.clearTaskFilter;
+          document.getElementById(filter === 'assignee' ? 'taskAssigneeFilter' : 'taskPriorityFilter').value = '';
+          render();
+          return;
+        }
         const tab = event.target.closest('[data-task-mobile-status]');
         if (tab) {
           mobileStatus = tab.dataset.taskMobileStatus;
