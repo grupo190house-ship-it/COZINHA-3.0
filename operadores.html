@@ -1,5 +1,38 @@
 <section id="view-operadores" class="page-view">
-  <div class="page-head"><div><span class="eyebrow">Equipe e acesso</span><h1>Operadores</h1><p>Equipe operacional, cargos e permissões.</p></div><div class="page-actions"><button id="newOperatorButton" class="btn btn-primary"><span class="material-symbols-rounded">person_add</span>Novo operador</button></div></div>
-  <ul class="nav nav-pills mb-3"><li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#operatorTab">Operadores</button></li><li id="usersTabButton" class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#userTab">Usuários do sistema</button></li></ul>
-  <div class="tab-content"><div id="operatorTab" class="tab-pane fade show active card-surface"><div id="operatorsTable"></div></div><div id="userTab" class="tab-pane fade card-surface"><div class="toolbar justify-content-end"><button id="newUserButton" class="btn btn-primary"><span class="material-symbols-rounded">person_add</span>Novo usuário</button></div><div id="usersTable"></div></div></div>
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">Acesso dos funcionários</span>
+      <h1>Equipe</h1>
+      <p>Cadastre quem recebe as tarefas e envia as fotos de conclusão.</p>
+    </div>
+    <div class="page-actions">
+      <button id="newUserButton" class="btn btn-primary" type="button">
+        <span class="material-symbols-rounded">person_add</span>Novo funcionário
+      </button>
+    </div>
+  </div>
+
+  <div class="task-summary-grid team-summary-grid">
+    <article class="task-summary-card card-surface">
+      <span class="task-summary-icon todo"><span class="material-symbols-rounded">groups</span></span>
+      <div><small>Funcionários ativos</small><strong id="teamActiveCount">0</strong></div>
+    </article>
+    <article class="task-summary-card card-surface">
+      <span class="task-summary-icon doing"><span class="material-symbols-rounded">supervisor_account</span></span>
+      <div><small>Supervisores</small><strong id="teamSupervisorCount">0</strong></div>
+    </article>
+  </div>
+
+  <div class="card-surface p-3 p-md-4">
+    <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+      <div>
+        <h2 class="h5 mb-1">Funcionários com acesso</h2>
+        <p class="text-secondary small mb-0">Cada pessoa entra com seu email e vê somente as tarefas atribuídas a ela.</p>
+      </div>
+      <button id="refreshUsersButton" class="btn btn-light" type="button" title="Atualizar">
+        <span class="material-symbols-rounded">refresh</span><span class="d-none d-sm-inline">Atualizar</span>
+      </button>
+    </div>
+    <div id="usersTable"></div>
+  </div>
 </section>

@@ -2,7 +2,7 @@
   "name": "cozinhaflow-erp",
   "version": "1.5.0",
   "private": true,
-  "description": "ERP mobile-first para produção, estoque, perdas e tarefas operacionais no Google Apps Script.",
+  "description": "Aplicativo mobile-first de tarefas da equipe com comprovação por foto no Google Drive.",
   "type": "module",
   "scripts": {
     "test": "node scripts/validate-project.mjs && node scripts/test-business-rules.mjs",

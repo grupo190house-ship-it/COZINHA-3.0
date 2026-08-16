@@ -1,7 +1,7 @@
 <script>
   window.ModuleLoaders = window.ModuleLoaders || {};
   const App = (() => {
-    const state = { token: '', user: null, acl: [], config: {}, enums: {}, lookups: null, notifications: [], currentModule: 'dashboard' };
+    const state = { token: '', user: null, acl: [], config: {}, enums: {}, lookups: null, notifications: [], currentModule: 'tarefas' };
     const tokenKey = 'cozinhaflow_token';
     const getToken = () => sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey) || '';
     const setToken = (token, remember) => {
@@ -46,11 +46,14 @@
       document.getElementById('bootLoader').classList.add('d-none');
       document.getElementById('loginScreen').classList.add('d-none');
       document.getElementById('appShell').classList.remove('d-none');
-      await navigate('dashboard');
+      await navigate('tarefas');
     }
     function renderShell() {
       const config = state.config;
-      document.getElementById('sidebarAppName').textContent = config.APP_NAME || 'CozinhaFlow ERP';
+      const configuredName = config.APP_NAME || '';
+      document.getElementById('sidebarAppName').textContent = !configuredName || configuredName === 'CozinhaFlow ERP'
+        ? 'CozinhaFlow Tarefas'
+        : configuredName;
       document.getElementById('sidebarCompany').textContent = config.COMPANY_NAME || '';
       document.getElementById('userName').textContent = state.user.name;
       document.getElementById('userRole').textContent = state.user.role;
@@ -58,10 +61,9 @@
       const all = state.acl.includes('*');
       document.querySelectorAll('[data-resource]').forEach(item => {
         const resource = item.dataset.resource;
-        const allowed = all || resource === 'dashboard' || (resource === 'admin' ? state.user.role === 'Administrador' : state.acl.includes(resource));
+        const allowed = all || resource === 'tarefas' || (resource === 'admin' ? state.user.role === 'Administrador' : state.acl.includes(resource));
         item.classList.toggle('d-none', !allowed);
       });
-      document.getElementById('usersTabButton').classList.toggle('d-none', state.user.role !== 'Administrador');
       document.querySelector('#profileForm [name=name]').value = state.user.name;
       document.querySelector('#profileForm [name=email]').value = state.user.email;
       renderNotifications();
@@ -136,7 +138,7 @@
         renderNotifications();
       };
       const search = document.getElementById('globalSearch');
-      search.addEventListener('input', UI.debounce(async () => {
+      search?.addEventListener('input', UI.debounce(async () => {
         const host = document.getElementById('searchResults');
         if (search.value.trim().length < 2) { host.classList.add('d-none'); return; }
         try {
@@ -146,8 +148,8 @@
           host.querySelectorAll('[data-search-module]').forEach(item => item.onclick = () => { host.classList.add('d-none'); search.value = ''; navigate(item.dataset.searchModule); });
         } catch (error) { UI.toast(error.message, 'danger'); }
       }, 300));
-      document.addEventListener('click', event => {
-        if (!event.target.closest('.global-search')) document.getElementById('searchResults').classList.add('d-none');
+      if (search) document.addEventListener('click', event => {
+        if (!event.target.closest('.global-search')) document.getElementById('searchResults')?.classList.add('d-none');
       });
       document.getElementById('profileForm').addEventListener('submit', async event => {
         event.preventDefault();
@@ -162,7 +164,7 @@
         } catch (error) { UI.toast(error.message, 'danger'); }
         finally { UI.loading(button, false); }
       });
-      document.getElementById('configForm').addEventListener('submit', async event => {
+      document.getElementById('configForm')?.addEventListener('submit', async event => {
         event.preventDefault();
         const button = event.currentTarget.querySelector('button');
         UI.loading(button, true);
@@ -171,6 +173,7 @@
         finally { UI.loading(button, false); }
       });
       window.ModuleLoaders.configuracoes = async () => {
+        if (!document.getElementById('configForm')) return;
         state.config = await server('config.get');
         Object.entries(state.config).forEach(([key, value]) => {
           const input = document.querySelector(`#configForm [name="${key}"]`);
@@ -186,8 +189,7 @@
       window.dispatchEvent(new CustomEvent('themechange'));
     }
     function moduleFromSearch(name) {
-      const map = { insumos: 'insumos', produtos: 'produtos', fornecedores: 'fornecedores', pedidos: 'compras', operadores: 'operadores', estoque: 'estoque' };
-      return map[name] || 'dashboard';
+      return name === 'operadores' ? 'operadores' : 'tarefas';
     }
     function renderNotifications() {
       const list = document.getElementById('notificationList');
@@ -203,8 +205,8 @@
       const role = state.user?.role;
       if (role === 'Administrador') return true;
       const map = {
-        Supervisor: ['tarefas','estoque','insumos','produtos','producoes','perdas','inventarios','compras','fornecedores','operadores','notificacoes'],
-        Operador: ['tarefas','producoes','perdas','inventarios'], Comprador: ['compras','fornecedores','notificacoes'], Financeiro: ['compras','notificacoes']
+        Supervisor: ['tarefas','notificacoes'],
+        Operador: ['tarefas','notificacoes']
       };
       return (map[role] || []).includes(resource);
     };

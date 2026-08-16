@@ -26,11 +26,11 @@ function apiRequest(action, payload, token) {
 }
 
 var API_ROUTES_ = {
-  'session.me': { resource: 'dashboard', handler: function(p, user) { return getApplicationBootstrap_(user); } },
-  'session.logout': { resource: 'dashboard', mutate: true, handler: function(p, user, token) { logout_(token, user); return null; } },
-  'profile.save': { resource: 'dashboard', mutate: true, handler: updateOwnProfile_ },
+  'session.me': { resource: 'tarefas', handler: function(p, user) { return getApplicationBootstrap_(user); } },
+  'session.logout': { resource: 'tarefas', mutate: true, handler: function(p, user, token) { logout_(token, user); return null; } },
+  'profile.save': { resource: 'tarefas', mutate: true, handler: updateOwnProfile_ },
   'dashboard.get': { resource: 'dashboard', handler: function(p) { return getDashboardData_(p); } },
-  'lookups.get': { resource: 'dashboard', handler: getLookups_ },
+  'lookups.get': { resource: 'tarefas', handler: getLookups_ },
   'search.global': { resource: 'dashboard', handler: globalSearch_ },
 
   'insumos.list': { resource: 'insumos', handler: function() { return listCatalog_('INSUMOS'); } },
