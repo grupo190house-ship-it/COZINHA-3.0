@@ -30,6 +30,7 @@ function compose() {
       products:[{id:'p1',name:'Queijo ralado 100 g'},{id:'p2',name:'Calabresa fatiada 500 g'}],
       suppliers:[{id:'f1',name:'Distribuidora Aurora'},{id:'f2',name:'Alimentos Nordeste'}],
       operators:[{id:'o1',name:'Lucas Almeida'},{id:'o2',name:'Paulo Lima'}],
+      users:[{id:'u1',name:'Marina Souza',email:'admin@cozinha.local',role:'Administrador'},{id:'u2',name:'Lucas Almeida',email:'lucas@cozinha.local',role:'Operador'},{id:'u3',name:'Paulo Lima',email:'paulo@cozinha.local',role:'Supervisor'}],
       recipes:[],
       units:['kg','g','L','mL','un','cx','pct','porção'],
       roles:['Administrador','Supervisor','Operador','Comprador','Financeiro','Consulta']
@@ -92,20 +93,25 @@ function compose() {
       'pontos.resgates':[
         {ID:'r1',RECOMPENSA_ID:'pizza_brotinho',RECOMPENSA_NOME:'Pizza brotinho',EMOJI:'🍕',PONTOS:180,USUARIO_ID:'u2',USUARIO_NOME:'Lucas Almeida',STATUS:'Solicitado',CRIADO_EM:previewNow}
       ],
+      'pontos.ajustes':[
+        {ID:'aj1',USUARIO_ID:'u2',USUARIO_NOME:'Lucas Almeida',PONTOS:-2,MOTIVO:'Entrega atrasada: organizar a bancada',ORIGEM:'ATRASO',ADMIN_NOME:'Marina Souza',CRIADO_EM:previewNow}
+      ],
       'usuarios.list':[
         {id:'u1',name:'Marina Souza',email:'admin@cozinha.local',role:'Administrador',status:'Ativo',lastAccess:previewNow},
         {id:'u2',name:'Lucas Almeida',email:'lucas@cozinha.local',role:'Operador',status:'Ativo',lastAccess:previewNow},
         {id:'u3',name:'Paulo Lima',email:'paulo@cozinha.local',role:'Supervisor',status:'Ativo',lastAccess:previewNow}
       ]
     };
-    const mockData = action => {
+    const mockData = (action, payload = {}) => {
       if(action==='session.me') return {user:previewWorkerMode?{id:'u2',name:'Lucas Almeida',email:'lucas@cozinha.local',role:'Operador',status:'Ativo'}:{id:'u1',name:'Marina Souza',email:'admin@cozinha.local',role:'Administrador',status:'Ativo'},acl:previewWorkerMode?['tarefas','notificacoes']:['tarefas','operadores','notificacoes'],config:{APP_NAME:'CozinhaFlow ERP',COMPANY_NAME:'Cozinha Industrial Aurora',CURRENCY:'BRL',VERSION:'1.5.0'},enums:{},notifications:[]};
       if(action==='lookups.get') return previewLookups;
       if(action==='dashboard.get') return previewDashboard;
       if(action==='compras.refresh') return {created:0,updated:2};
       if(action==='tarefas.list' && previewWorkerMode) return previewRows[action].filter(row=>row.RESPONSAVEL_ID==='u2');
       if(action==='pontos.resgates' && previewWorkerMode) return previewRows[action].filter(row=>row.USUARIO_ID==='u2');
-      if(action==='pontos.resgatar' || action==='pontos.entregar' || action==='pontos.recompensa.salvar') return {ok:true};
+      if(action==='config.save') return payload;
+      if(action==='pontos.resgatar' || action==='pontos.entregar' || action==='pontos.recompensa.salvar' || action==='push.register') return {ok:true};
+      if(action==='pontos.punir') return {ID:'aj-preview',USUARIO_ID:payload.userId||'u2',USUARIO_NOME:'Lucas Almeida',PONTOS:-Number(payload.points||3),MOTIVO:payload.reason||'Punição administrativa',ORIGEM:'MANUAL',CRIADO_EM:previewNow};
       if(action==='tarefas.evidence') return {title:'Comprovante da tarefa',dataUrl:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22320%22%3E%3Crect width=%22600%22 height=%22320%22 fill=%22%23d9d5e8%22/%3E%3C/svg%3E',operator:'Lucas Almeida',completedAt:previewNow,observation:'Foto de demonstração'};
       return previewRows[action] || [];
     };
@@ -115,7 +121,7 @@ function compose() {
         if(prop==='withFailureHandler') return handler=>makeRunner(success,handler);
         return (...args)=>setTimeout(()=>{
           if(prop==='publicBootstrap') success?.({ok:true,data:{installed:true,appName:'CozinhaFlow ERP',companyName:'Cozinha Industrial Aurora',version:'1.5.0'}});
-          else if(prop==='apiRequest') success?.({ok:true,data:mockData(args[0])});
+          else if(prop==='apiRequest') success?.({ok:true,data:mockData(args[0],args[1]||{})});
           else success?.({ok:true,data:null});
         },80);
       }
@@ -135,7 +141,8 @@ http.createServer((request, response) => {
   const relative = decodeURIComponent(pathname).replace(/^\/+/, '');
   const filePath = path.resolve(root, relative);
   if (filePath.startsWith(root + path.sep) && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    const type = path.extname(filePath) === '.html' ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8';
+    const types = {'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.webmanifest':'application/manifest+json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'};
+    const type = types[path.extname(filePath)] || 'text/plain; charset=utf-8';
     response.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
     response.end(fs.readFileSync(filePath));
     return;

@@ -3,6 +3,8 @@
   const App = (() => {
     const state = { token: '', user: null, acl: [], config: {}, enums: {}, lookups: null, notifications: [], currentModule: 'tarefas' };
     const tokenKey = 'cozinhaflow_token';
+    const defaultPushVapidPublicKey = 'BGqSNGYZ-HddJ0w8yovAl1GynknDxTmHIHo-Hw1nl4G5R7Zt0tGMXDxskOOauRqXxGgbBtmPJdZxVPU1mRlxG5o';
+    const pushVapidPublicKey = () => String(state.config?.PUSH_VAPID_PUBLIC_KEY || defaultPushVapidPublicKey).trim();
     const defaultRewardCatalog = [
       { id: 'refri_lata', name: 'Refrigerante ou suco', description: 'Uma bebida individual gelada.', cost: 100, emoji: '🥤', tone: 'ice' },
       { id: 'sobremesa', name: 'Sobremesa da casa', description: 'Um doce individual do dia.', cost: 120, emoji: '🍨', tone: 'berry' },
@@ -19,13 +21,13 @@
     let rewardCatalog = defaultRewardCatalog.slice();
     const kitchenLevels = [
       { min: 0, name: 'Ajudante da Cozinha', emoji: '🍳', short: 'Ajudante' },
-      { min: 10, name: 'Mestre do Molho', emoji: '🍅', short: 'Molho' },
-      { min: 25, name: 'Guardião da Fritadeira', emoji: '🍗', short: 'Fritadeira' },
-      { min: 50, name: 'Rei da Chapa', emoji: '🍔', short: 'Chapa' },
-      { min: 90, name: 'Pizzaiolo de Ouro', emoji: '🍕', short: 'Pizzaiolo' },
-      { min: 140, name: 'Mestre do Crocante', emoji: '🔥', short: 'Crocante' },
-      { min: 220, name: 'Chef da House', emoji: '👨‍🍳', short: 'Chef' },
-      { min: 350, name: 'Lenda do Foodpark', emoji: '🏆', short: 'Lenda' }
+      { min: 60, name: 'Mestre do Molho', emoji: '🍅', short: 'Molho' },
+      { min: 150, name: 'Guardião da Fritadeira', emoji: '🍗', short: 'Fritadeira' },
+      { min: 300, name: 'Rei da Chapa', emoji: '🍔', short: 'Chapa' },
+      { min: 550, name: 'Pizzaiolo de Ouro', emoji: '🍕', short: 'Pizzaiolo' },
+      { min: 900, name: 'Mestre do Crocante', emoji: '🔥', short: 'Crocante' },
+      { min: 1500, name: 'Chef da House', emoji: '👨‍🍳', short: 'Chef' },
+      { min: 2500, name: 'Lenda do Foodpark', emoji: '🏆', short: 'Lenda' }
     ];
     const getToken = () => sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey) || '';
     const setToken = (token, remember) => {
@@ -71,6 +73,7 @@
       document.getElementById('loginScreen').classList.add('d-none');
       document.getElementById('appShell').classList.remove('d-none');
       await navigate('tarefas');
+      setTimeout(() => refreshPushRegistration().catch(() => {}), 700);
     }
     function renderShell() {
       const config = state.config;
@@ -191,6 +194,14 @@
         finally { UI.loading(button, false); }
       });
       document.getElementById('view-perfil').addEventListener('click', async event => {
+        const penaltyButton = event.target.closest('[data-penalty-add]');
+        if (penaltyButton) { openPenaltyForm(); return; }
+        const pushButton = event.target.closest('[data-push-enable]');
+        if (pushButton) { await enablePushNotifications(pushButton); return; }
+        const pushHelpButton = event.target.closest('[data-push-ios-help]');
+        if (pushHelpButton) { openIosInstallHelp(); return; }
+        const pushConfigButton = event.target.closest('[data-push-config]');
+        if (pushConfigButton) { openPushConfigForm(); return; }
         const addRewardButton = event.target.closest('[data-reward-add]');
         if (addRewardButton) { openRewardForm(); return; }
         const editRewardButton = event.target.closest('[data-reward-edit]');
@@ -248,21 +259,25 @@
         const panel = document.getElementById('profilePointsPanel');
         if (!panel) return;
         try {
-          const [rows, redemptions, catalog] = await Promise.all([server('tarefas.list'), server('pontos.resgates'), server('pontos.catalogo')]);
+          const [rows, redemptions, catalog, adjustments] = await Promise.all([server('tarefas.list'), server('pontos.resgates'), server('pontos.catalogo'), server('pontos.ajustes')]);
           rewardCatalog = catalog?.length ? catalog : defaultRewardCatalog.slice();
-          renderProfileExperience(rows || [], redemptions || []);
+          renderProfileExperience(rows || [], redemptions || [], adjustments || []);
+          renderPushSettings();
         } catch (error) {
           panel.innerHTML = `<div class="profile-points-error"><span class="material-symbols-rounded">error</span>${UI.esc(error.message)}</div>`;
         }
       };
     }
-    function renderProfileExperience(rows, redemptions) {
+    function renderProfileExperience(rows, redemptions, adjustments) {
       const panel = document.getElementById('profilePointsPanel');
       if (!panel) return;
       const ownRows = rows.filter(task => !state.user?.id || String(task.RESPONSAVEL_ID) === String(state.user.id));
       const completed = ownRows.filter(task => task.STATUS === 'Concluída');
       const pointsFor = task => ({ Urgente: 3, Alta: 2, Normal: 1, Baixa: 1 }[task.PRIORIDADE] || 1);
-      const lifetimePoints = completed.reduce((total, task) => total + pointsFor(task), 0);
+      const grossPoints = completed.reduce((total, task) => total + pointsFor(task), 0);
+      const ownAdjustments = adjustments.filter(item => String(item.USUARIO_ID) === String(state.user?.id));
+      const lostPoints = ownAdjustments.reduce((total, item) => total + Math.abs(Math.min(0, Number(item.PONTOS || 0))), 0);
+      const lifetimePoints = Math.max(0, grossPoints - lostPoints);
       const ownRedemptions = redemptions.filter(item => String(item.USUARIO_ID) === String(state.user?.id));
       const spentPoints = ownRedemptions.filter(item => item.STATUS !== 'Cancelado').reduce((total, item) => total + Number(item.PONTOS || 0), 0);
       const balance = Math.max(0, lifetimePoints - spentPoints);
@@ -285,7 +300,7 @@
         <div class="profile-score-stats">
           <div><span class="material-symbols-rounded">task_alt</span><strong>${completed.length}</strong><small>Concluídas</small></div>
           <div><span class="material-symbols-rounded">today</span><strong>${doneToday}</strong><small>Hoje</small></div>
-          <div><span class="material-symbols-rounded">savings</span><strong>${lifetimePoints}</strong><small>Ganhos</small></div>
+          <div class="${lostPoints ? 'has-point-loss' : ''}"><span class="material-symbols-rounded">trending_down</span><strong>${lostPoints}</strong><small>Perdidos</small></div>
         </div>
         <div class="profile-recent-head"><strong>Últimas conquistas</strong><small>Pontos entram após a aprovação da foto</small></div>
         <div class="profile-achievements">${recent.length ? recent.map((task, index) => `
@@ -296,6 +311,9 @@
       renderRewardsStore(balance);
       renderRewardHistory(ownRedemptions, redemptions);
       renderRewardManager();
+      renderPointStatement(completed, ownAdjustments, ownRedemptions, pointsFor);
+      renderPenaltyManager(adjustments);
+      showPendingPointLoss(ownAdjustments);
     }
     function renderKitchenBadges(points) {
       const host = document.getElementById('profileBadgesPanel');
@@ -354,6 +372,119 @@
         <p class="reward-manager-intro">Edite o preço, os textos e a disponibilidade das recompensas.</p>
         <div class="reward-manager-list">${rewardCatalog.map(reward => `
           <button type="button" data-reward-edit="${UI.esc(reward.id)}"><span>${reward.emoji || '🎁'}</span><div><strong>${UI.esc(reward.name)}</strong><small>${reward.cost} pontos · ${UI.esc(reward.status || 'Ativo')}</small></div><span class="material-symbols-rounded">edit</span></button>`).join('')}</div>`;
+    }
+    function renderPointStatement(completed, adjustments, redemptions, pointsFor) {
+      const host = document.getElementById('profilePointStatement');
+      if (!host) return;
+      const entries = [
+        ...completed.map(task => ({ at: task.CONCLUIDO_EM, title: task.TITULO, detail: 'Tarefa aprovada', points: pointsFor(task), icon: 'task_alt' })),
+        ...adjustments.map(item => ({ at: item.CRIADO_EM, title: item.MOTIVO, detail: item.ORIGEM === 'ATRASO' ? 'Punição automática por atraso' : item.ORIGEM === 'NAO_REALIZADA' ? 'Tarefa não realizada' : `Retirado por ${item.ADMIN_NOME || 'Administração'}`, points: Number(item.PONTOS || 0), icon: 'trending_down' })),
+        ...redemptions.filter(item => item.STATUS !== 'Cancelado').map(item => ({ at: item.CRIADO_EM, title: item.RECOMPENSA_NOME, detail: 'Resgate na loja', points: -Number(item.PONTOS || 0), icon: 'redeem' }))
+      ].sort((a, b) => String(b.at || '').localeCompare(String(a.at || ''))).slice(0, 12);
+      host.classList.toggle('d-none', !entries.length);
+      host.innerHTML = entries.length ? `<div class="profile-section-head"><div><small>Transparência total</small><strong>Extrato de pontos</strong></div></div><div class="point-statement-list">${entries.map(item => `<article class="${item.points < 0 ? 'is-loss' : 'is-gain'}"><span class="material-symbols-rounded">${item.icon}</span><div><strong>${UI.esc(item.title)}</strong><small>${UI.esc(item.detail)} · ${UI.date(item.at)}</small></div><b>${item.points > 0 ? '+' : ''}${item.points}</b></article>`).join('')}</div>` : '';
+    }
+    function renderPenaltyManager(adjustments) {
+      const host = document.getElementById('profilePenaltyManager');
+      if (!host) return;
+      const isAdmin = state.user?.role === 'Administrador';
+      host.classList.toggle('d-none', !isAdmin);
+      if (!isAdmin) { host.innerHTML = ''; return; }
+      const recent = adjustments.slice(0, 5);
+      host.innerHTML = `<div class="profile-section-head penalty-manager-head"><div><small>Disciplina da equipe</small><strong>Punições de pontos</strong></div><button type="button" data-penalty-add><span class="material-symbols-rounded">remove_circle</span>Retirar pontos</button></div><p class="reward-manager-intro">Toda retirada exige um motivo e aparece no extrato do funcionário.</p>${recent.length ? `<div class="penalty-history-list">${recent.map(item => `<article><span>−${Math.abs(Number(item.PONTOS || 0))}</span><div><strong>${UI.esc(item.USUARIO_NOME)}</strong><small>${UI.esc(item.MOTIVO)} · ${UI.date(item.CRIADO_EM)}</small></div></article>`).join('')}</div>` : '<div class="profile-achievement-empty"><span class="material-symbols-rounded">verified_user</span><span>Nenhuma punição registrada.</span></div>'}`;
+    }
+    function openPenaltyForm() {
+      const users = (state.lookups?.users || []).filter(item => ['Operador', 'Supervisor'].includes(item.role));
+      UI.openModal({
+        title: 'Retirar pontos', eyebrow: 'Punição administrativa', size: 'sm', formId: 'pointPenaltyForm', submitText: 'Confirmar perda',
+        body: `<form id="pointPenaltyForm" class="point-penalty-form"><div class="penalty-warning"><span class="material-symbols-rounded">warning</span><div><strong>Esta ação fica registrada</strong><small>O funcionário verá a perda, o motivo e quem aplicou.</small></div></div><div><label class="form-label">Funcionário</label><select name="userId" class="form-select" required>${UI.options(users, '', 'Selecione...')}</select></div><div><label class="form-label">Quantidade a retirar</label><input name="points" type="number" inputmode="numeric" min="1" max="9999" value="3" class="form-control" required></div><div><label class="form-label">Motivo obrigatório</label><textarea name="reason" class="form-control" rows="3" maxlength="240" placeholder="Ex.: não cumpriu o procedimento informado" required></textarea></div></form>`,
+        onSubmit: async form => {
+          form.points = Number(form.points);
+          const record = await server('pontos.punir', form);
+          animatePointLoss(Math.abs(Number(record.PONTOS || form.points)), record.USUARIO_NOME);
+          UI.toast(`${record.USUARIO_NOME} perdeu ${Math.abs(Number(record.PONTOS))} ponto(s).`, 'warning');
+          await window.ModuleLoaders.perfil();
+        }
+      });
+    }
+    function animatePointLoss(points, name = '') {
+      const host = document.createElement('div');
+      host.className = 'point-loss-celebration';
+      host.innerHTML = `<span class="material-symbols-rounded">trending_down</span><strong>−${points}</strong><b>ponto${points > 1 ? 's' : ''}</b>${name ? `<small>${UI.esc(name)}</small>` : ''}${Array.from({ length: 9 }, (_, index) => `<i style="--i:${index}"></i>`).join('')}`;
+      document.body.appendChild(host);
+      if (navigator.vibrate) navigator.vibrate([80, 45, 110]);
+      setTimeout(() => host.remove(), 2200);
+    }
+    function showPendingPointLoss(adjustments) {
+      const latest = adjustments[0];
+      if (!latest || Number(latest.PONTOS || 0) >= 0) return;
+      const key = `cozinhaflow_last_penalty_${state.user?.id || ''}`;
+      if (localStorage.getItem(key) === String(latest.ID)) return;
+      localStorage.setItem(key, String(latest.ID));
+      setTimeout(() => animatePointLoss(Math.abs(Number(latest.PONTOS)), ''), 280);
+    }
+    const pushSupported = () => 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window && typeof window.firebase?.messaging === 'function';
+    const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    function renderPushSettings() {
+      const host = document.getElementById('profilePushSettings');
+      if (!host) return;
+      const supported = pushSupported(), permission = supported ? Notification.permission : 'unsupported';
+      const iosNeedsInstall = isIos() && !isStandalone();
+      const configured = Boolean(pushVapidPublicKey());
+      let icon = 'notifications_active', title = 'Notificações no telefone', copy = 'Receba tarefas novas, aprovações, devoluções e perdas de pontos.', action = '';
+      if (!supported) { icon = 'notifications_off'; copy = 'Este navegador não oferece notificações. Atualize o navegador do telefone.'; }
+      else if (iosNeedsInstall) { icon = 'add_to_home_screen'; copy = 'No iPhone, adicione o app à Tela de Início antes de ativar.'; action = '<button type="button" data-push-ios-help>Como instalar</button>'; }
+      else if (!configured) { icon = 'settings_alert'; copy = state.user?.role === 'Administrador' ? 'Falta cadastrar a chave pública do Firebase para liberar os avisos reais.' : 'A administração ainda está finalizando a configuração dos avisos.'; action = state.user?.role === 'Administrador' ? '<button type="button" data-push-config>Configurar</button>' : ''; }
+      else if (permission === 'granted') { icon = 'notifications_active'; copy = 'Ativadas neste aparelho. Os avisos chegam mesmo com o app fechado.'; action = '<span class="push-enabled-badge"><i></i>Ativadas</span>'; }
+      else if (permission === 'denied') { icon = 'notifications_off'; copy = 'Os avisos foram bloqueados. Libere “Notificações” nas configurações do telefone.'; }
+      else action = '<button type="button" data-push-enable>Ativar notificações</button>';
+      host.innerHTML = `<div class="push-settings-icon"><span class="material-symbols-rounded">${icon}</span></div><div class="push-settings-copy"><small>iPhone e Android</small><strong>${title}</strong><span>${copy}</span></div><div class="push-settings-action">${action}</div>`;
+    }
+    function openIosInstallHelp() {
+      UI.openModal({ title: 'Ativar no iPhone', eyebrow: 'Leva menos de um minuto', size: 'sm', body: '<div class="ios-install-steps"><div><b>1</b><span>Abra este site no <strong>Safari</strong>.</span></div><div><b>2</b><span>Toque em <strong>Compartilhar</strong> na barra do navegador.</span></div><div><b>3</b><span>Escolha <strong>Adicionar à Tela de Início</strong>.</span></div><div><b>4</b><span>Abra o novo ícone e toque em <strong>Ativar notificações</strong>.</span></div></div>', footer: '<button type="button" class="btn btn-primary w-100" data-bs-dismiss="modal">Entendi</button>' });
+    }
+    function openPushConfigForm() {
+      UI.openModal({ title: 'Configurar notificações', eyebrow: 'Firebase Cloud Messaging', size: 'sm', formId: 'pushConfigForm', submitText: 'Salvar e ativar', body: `<form id="pushConfigForm" class="point-penalty-form"><div class="penalty-warning push-config-info"><span class="material-symbols-rounded">key</span><div><strong>Chave pública Web Push</strong><small>Cole a chave VAPID gerada no Firebase Console. Ela é pública e segura para ficar no app.</small></div></div><div><label class="form-label">Chave pública</label><textarea name="PUSH_VAPID_PUBLIC_KEY" class="form-control" rows="3" minlength="80" placeholder="B..." required>${UI.esc(pushVapidPublicKey())}</textarea></div></form>`, onSubmit: async form => { state.config = await server('config.save', { PUSH_VAPID_PUBLIC_KEY: String(form.PUSH_VAPID_PUBLIC_KEY || '').trim() }); renderPushSettings(); UI.toast('Chave salva. Agora ative as notificações neste telefone.', 'success'); } });
+    }
+    function pushDeviceId() {
+      const key = 'cozinhaflow_push_device';
+      let value = localStorage.getItem(key);
+      if (!value) { value = crypto.randomUUID ? crypto.randomUUID() : `device-${Date.now()}-${Math.random().toString(36).slice(2)}`; localStorage.setItem(key, value); }
+      return value;
+    }
+    async function refreshPushRegistration(askPermission = false) {
+      if (!pushSupported() || (isIos() && !isStandalone())) return false;
+      const vapidKey = pushVapidPublicKey();
+      if (!vapidKey) return false;
+      let permission = Notification.permission;
+      if (askPermission && permission === 'default') permission = await Notification.requestPermission();
+      if (permission !== 'granted') return false;
+      const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' });
+      await navigator.serviceWorker.ready;
+      const messaging = firebase.messaging();
+      const token = await messaging.getToken({ vapidKey, serviceWorkerRegistration: registration });
+      if (!token) throw new Error('O telefone não forneceu o código de notificação. Tente novamente.');
+      await server('push.register', { token, deviceId: pushDeviceId(), platform: isIos() ? 'iOS' : /android/i.test(navigator.userAgent) ? 'Android' : 'Web', userAgent: navigator.userAgent });
+      if (!window.__cozinhaPushForegroundBound) {
+        window.__cozinhaPushForegroundBound = true;
+        messaging.onMessage(payload => {
+          const title = payload.notification?.title || payload.data?.title || 'CozinhaFlow';
+          const body = payload.notification?.body || payload.data?.body || 'Você recebeu uma atualização.';
+          registration.showNotification(title, { body, icon: './app-icon-192.png', badge: './app-icon-192.png', tag: payload.data?.notificationId || 'cozinhaflow', data: { url: './' }, vibrate: [120, 60, 120] });
+          UI.toast(`${title}: ${body}`);
+        });
+      }
+      localStorage.setItem(`cozinhaflow_push_ready_${state.user?.id}`, new Date().toISOString());
+      return true;
+    }
+    async function enablePushNotifications(button) {
+      if (isIos() && !isStandalone()) { openIosInstallHelp(); return; }
+      if (!pushVapidPublicKey()) { state.user?.role === 'Administrador' ? openPushConfigForm() : UI.toast('A administração ainda precisa concluir a configuração.', 'warning'); return; }
+      UI.loading(button, true, 'Ativando...');
+      try { const active = await refreshPushRegistration(true); if (!active) throw new Error(Notification.permission === 'denied' ? 'As notificações estão bloqueadas nas configurações do telefone.' : 'Permissão de notificação não concedida.'); renderPushSettings(); UI.toast('Notificações reais ativadas neste telefone!', 'success'); }
+      catch (error) { UI.toast(error.message, 'danger'); }
+      finally { UI.loading(button, false); }
     }
     function openRewardForm(reward = {}) {
       const editing = Boolean(reward.id);

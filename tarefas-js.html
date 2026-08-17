@@ -502,10 +502,14 @@
 
     async function approveTask(task) {
       if (!await UI.confirm('Aprovar conclusão', `A foto de “${task.TITULO}” comprova que a tarefa foi executada?`, 'Aprovar tarefa')) return;
-      await App.server('tarefas.approve', { id: task.ID });
+      const result = await App.server('tarefas.approve', { id: task.ID });
       mobileStatus = 'Concluída';
       celebrateTaskPoints(taskPoints(task));
-      UI.toast(`Tarefa aprovada! +${taskPoints(task)} ponto${taskPoints(task) > 1 ? 's' : ''} para ${task.RESPONSAVEL_NOME}.`, 'success');
+      const penalty = Math.abs(Number(result?.PENALIDADE_APLICADA?.PONTOS || 0));
+      if (penalty) {
+        setTimeout(() => celebratePointLoss(penalty, task.RESPONSAVEL_NOME), 650);
+        UI.toast(`Aprovada com atraso: +${taskPoints(task)} e −${penalty} ponto(s) para ${task.RESPONSAVEL_NOME}.`, 'warning');
+      } else UI.toast(`Tarefa aprovada! +${taskPoints(task)} ponto${taskPoints(task) > 1 ? 's' : ''} para ${task.RESPONSAVEL_NOME}.`, 'success');
       await load();
     }
 
@@ -515,6 +519,15 @@
       host.innerHTML = `<strong>+${points}</strong><span>ponto${points > 1 ? 's' : ''}</span>${Array.from({ length: 8 }, (_, index) => `<i style="--i:${index}"></i>`).join('')}`;
       document.body.appendChild(host);
       setTimeout(() => host.remove(), 1500);
+    }
+
+    function celebratePointLoss(points, name) {
+      const host = document.createElement('div');
+      host.className = 'point-loss-celebration';
+      host.innerHTML = `<span class="material-symbols-rounded">trending_down</span><strong>−${points}</strong><b>ponto${points > 1 ? 's' : ''}</b><small>${UI.esc(name || '')}</small>${Array.from({ length: 9 }, (_, index) => `<i style="--i:${index}"></i>`).join('')}`;
+      document.body.appendChild(host);
+      if (navigator.vibrate) navigator.vibrate([80, 45, 110]);
+      setTimeout(() => host.remove(), 2200);
     }
 
     function rejectTask(task) {
@@ -543,11 +556,19 @@
       });
     }
 
-    async function cancelTask(task) {
-      if (!await UI.confirm('Cancelar tarefa', `Cancelar “${task.TITULO}”? O registro permanecerá no arquivo.`, 'Cancelar tarefa', true)) return;
-      await App.server('tarefas.cancel', { id: task.ID });
-      UI.toast('Tarefa cancelada.', 'warning');
-      await load();
+    function cancelTask(task) {
+      const suggested = taskPoints(task);
+      UI.openModal({
+        title: 'Cancelar tarefa', eyebrow: 'Registro e possível punição', size: 'sm', formId: 'taskCancelForm', submitText: 'Cancelar tarefa',
+        body: `<form id="taskCancelForm" class="point-penalty-form"><div class="task-complete-summary"><span class="material-symbols-rounded">cancel</span><div><small>Tarefa</small><strong>${UI.esc(task.TITULO)}</strong></div></div><div><label class="form-label">Motivo do cancelamento</label><textarea name="reason" class="form-control" rows="3" maxlength="240" placeholder="Explique por que a tarefa não foi realizada..." required></textarea></div><div><label class="form-label">Perda de pontos</label><select name="points" class="form-select"><option value="0">Sem punição</option><option value="${suggested}" selected>−${suggested} ponto${suggested > 1 ? 's' : ''} · conforme prioridade</option><option value="5">−5 pontos</option><option value="10">−10 pontos</option><option value="20">−20 pontos</option></select><small class="form-text text-secondary">A perda aparecerá no extrato do funcionário.</small></div></form>`,
+        onSubmit: async form => {
+          const result = await App.server('tarefas.cancel', { id: task.ID, reason: form.reason, points: Number(form.points) });
+          const penalty = Math.abs(Number(result?.PENALIDADE_APLICADA?.PONTOS || 0));
+          if (penalty) celebratePointLoss(penalty, task.RESPONSAVEL_NOME);
+          UI.toast(penalty ? `Tarefa cancelada com perda de ${penalty} ponto(s).` : 'Tarefa cancelada sem perda de pontos.', 'warning');
+          await load();
+        }
+      });
     }
 
     async function reopenTask(task) {

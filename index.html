@@ -4,8 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#7548dc">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CozinhaFlow">
   <meta name="description" content="CozinhaFlow Tarefas — atividades da equipe com comprovação por foto no Google Drive.">
   <title>CozinhaFlow Tarefas</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="app-icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
@@ -15,6 +21,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
 </head>
 <body>
   <div id="initialLoader" style="min-height:100vh;display:grid;place-items:center;font-family:Inter,system-ui,sans-serif;background:linear-gradient(145deg,#f8f4ff,#fff7f0);color:#25263a">
@@ -27,7 +34,7 @@
   <script>
     (() => {
       'use strict';
-      const ASSET_VERSION = '20260816-loja-selos-v6';
+      const ASSET_VERSION = '20260816-push-punicoes-v7';
       localStorage.setItem('cozinhaflow_theme', 'light');
 
       const stopZoom = event => event.preventDefault();
