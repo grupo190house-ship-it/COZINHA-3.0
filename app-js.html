@@ -100,6 +100,18 @@
       const target = document.getElementById(`view-${module}`);
       if (!target) return;
       state.currentModule = module;
+      const topbar = document.querySelector('.topbar-title');
+      const pageLabels = {
+        tarefas: { icon: 'task_alt', title: state.user?.role === 'Administrador' ? 'Tarefas da equipe' : 'Minhas tarefas' },
+        operadores: { icon: 'group', title: 'Equipe' },
+        loja: { icon: 'redeem', title: 'Loja de pontos' },
+        perfil: { icon: 'account_circle', title: 'Meu perfil' }
+      };
+      const pageLabel = pageLabels[module] || pageLabels.tarefas;
+      if (topbar) {
+        topbar.querySelector('.material-symbols-rounded').textContent = pageLabel.icon;
+        topbar.querySelector('strong').textContent = pageLabel.title;
+      }
       document.querySelectorAll('.page-view').forEach(view => view.classList.toggle('active', view === target));
       document.querySelectorAll('.side-link[data-module]').forEach(link => link.classList.toggle('active', link.dataset.module === module));
       document.querySelectorAll('.mobile-nav-link[data-module]').forEach(link => link.classList.toggle('active', link.dataset.module === module));
