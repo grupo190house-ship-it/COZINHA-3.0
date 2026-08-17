@@ -19,6 +19,7 @@
     const isDueSoon = task => task.PRAZO && ['A fazer', 'Em andamento'].includes(task.STATUS) &&
       new Date(task.PRAZO).getTime() >= Date.now() && new Date(task.PRAZO).getTime() - Date.now() <= 2 * 60 * 60 * 1000;
     const priorityTone = priority => ({ Urgente: 'urgent', Alta: 'high', Normal: 'normal', Baixa: 'low' }[priority] || 'normal');
+    const taskPoints = task => ({ Urgente: 3, Alta: 2, Normal: 1, Baixa: 1 }[task.PRIORIDADE] || 1);
     const plural = (value, singular, pluralForm) => `${value} ${value === 1 ? singular : pluralForm}`;
 
     function relativeDeadline(value) {
@@ -198,6 +199,7 @@
         <article class="task-card ${overdue ? 'is-overdue' : ''} ${completed ? 'is-completed' : ''}" data-task-id="${UI.esc(task.ID)}">
           <div class="task-card-top">
             <span class="task-priority ${priorityTone(task.PRIORIDADE)}"><span></span>${UI.esc(task.PRIORIDADE || 'Normal')}</span>
+            <span class="task-points-chip ${completed ? 'is-earned' : ''}"><span class="material-symbols-rounded">${completed ? 'stars' : 'bolt'}</span>${completed ? '+' : ''}${taskPoints(task)} pt${taskPoints(task) > 1 ? 's' : ''}</span>
             ${overdue ? '<span class="task-overdue-label"><span class="material-symbols-rounded">schedule</span>Atrasada</span>' : ''}
             ${awaitingReview ? '<span class="task-review-label"><span class="material-symbols-rounded">fact_check</span>Conferir foto</span>' : ''}
             ${completed ? '<span class="task-completed-label"><span class="material-symbols-rounded">check_circle</span>Concluída</span>' : ''}
@@ -301,42 +303,46 @@
         formId: 'modalForm',
         submitText: task.ID ? 'Salvar alterações' : 'Enviar ao operador',
         body: `
-          <form id="modalForm" class="row g-3">
+          <form id="modalForm" class="task-form-compact">
             <input type="hidden" name="ID" value="${UI.esc(task.ID || '')}">
-            <div class="col-12">
+            <div class="task-form-main">
+            <div class="task-form-field task-title-field">
               <label class="form-label">Função ou tarefa</label>
               <input name="TITULO" class="form-control" maxlength="160" value="${UI.esc(task.TITULO || '')}" placeholder="Ex.: Limpar o forno industrial" required>
-              <small class="form-text text-secondary">O texto digitado aqui será a atividade exibida ao operador.</small>
             </div>
-            <div class="col-12">
-              <label class="form-label">Orientações</label>
-              <textarea name="DESCRICAO" class="form-control" rows="4" maxlength="1500" placeholder="Explique como a atividade deve ser realizada...">${UI.esc(task.DESCRICAO || '')}</textarea>
-            </div>
-            <div class="col-12">
-              <label class="form-label">O que precisa aparecer na foto</label>
-              <input name="ORIENTACAO_FOTO" class="form-control" maxlength="300" value="${UI.esc(task.ORIENTACAO_FOTO || '')}" placeholder="Ex.: fotografe o forno inteiro e a parte interna">
-            </div>
-            <div class="col-md-6">
+            <div class="task-form-field">
               <label class="form-label">Operador responsável</label>
               <select name="RESPONSAVEL_ID" class="form-select" required>${UI.options(options, task.RESPONSAVEL_ID, 'Selecione o operador...')}</select>
             </div>
-            <div class="col-md-3">
-              <label class="form-label">Prioridade</label>
-              <select name="PRIORIDADE" class="form-select" required>
-                ${['Baixa', 'Normal', 'Alta', 'Urgente'].map(value => `<option ${value === (task.PRIORIDADE || 'Normal') ? 'selected' : ''}>${value}</option>`).join('')}
-              </select>
+            <fieldset class="task-priority-picker">
+              <legend>Prioridade e pontos</legend>
+              ${[['Normal','1','routine'],['Alta','2','high'],['Urgente','3','urgent']].map(([value, points, tone]) => `<label class="${tone}"><input type="radio" name="PRIORIDADE" value="${value}" ${value === (task.PRIORIDADE === 'Baixa' ? 'Normal' : (task.PRIORIDADE || 'Normal')) ? 'checked' : ''} required><span><i></i><strong>${value}</strong><small>+${points} pt${points === '1' ? '' : 's'}</small></span></label>`).join('')}
+            </fieldset>
             </div>
-            <div class="col-md-3">
+            <details class="task-form-more" ${task.ID || task.DESCRICAO || task.ORIENTACAO_FOTO || task.PRAZO || (task.RECORRENCIA && task.RECORRENCIA !== 'Nenhuma') ? 'open' : ''}>
+              <summary><span class="material-symbols-rounded">tune</span><span><strong>Orientações, prazo e repetição</strong><small>Opcional</small></span><span class="material-symbols-rounded task-more-chevron">expand_more</span></summary>
+              <div class="task-form-more-body">
+            <div class="task-form-field">
+              <label class="form-label">Orientações</label>
+              <textarea name="DESCRICAO" class="form-control" rows="3" maxlength="1500" placeholder="Como a atividade deve ser feita?">${UI.esc(task.DESCRICAO || '')}</textarea>
+            </div>
+            <div class="task-form-field">
+              <label class="form-label">O que deve aparecer na foto</label>
+              <input name="ORIENTACAO_FOTO" class="form-control" maxlength="300" value="${UI.esc(task.ORIENTACAO_FOTO || '')}" placeholder="Ex.: forno inteiro e parte interna">
+            </div>
+            <div class="task-form-options-grid">
+            <div class="task-form-field">
               <label class="form-label">Prazo</label>
               <input name="PRAZO" type="datetime-local" class="form-control" value="${UI.esc(deadline)}">
             </div>
-            <div class="col-md-4">
+            <div class="task-form-field">
               <label class="form-label">Repetição</label>
               <select id="taskRecurrence" name="RECORRENCIA" class="form-select">
                 ${['Nenhuma', 'Diária', 'Dias específicos'].map(value => `<option ${value === (task.RECORRENCIA || 'Nenhuma') ? 'selected' : ''}>${value}</option>`).join('')}
               </select>
             </div>
-            <div id="taskRecurrenceFields" class="col-12 ${!task.RECORRENCIA || task.RECORRENCIA === 'Nenhuma' ? 'd-none' : ''}">
+            </div>
+            <div id="taskRecurrenceFields" class="${!task.RECORRENCIA || task.RECORRENCIA === 'Nenhuma' ? 'd-none' : ''}">
               <div class="task-recurrence-form">
                 <div><label class="form-label">Turno</label><select name="TURNO" class="form-select"><option value="">Sem turno</option>${['Abertura', 'Almoço', 'Fechamento'].map(value => `<option ${value === task.TURNO ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
                 <div><label class="form-label">Horário limite</label><input name="RECORRENCIA_HORA" type="time" class="form-control" value="${UI.esc(task.RECORRENCIA_HORA || deadline.substring(11, 16) || '18:00')}"></div>
@@ -346,6 +352,8 @@
                 </div>
               </div>
             </div>
+              </div>
+            </details>
           </form>`,
         onSubmit: async form => {
           if (form.RECORRENCIA === 'Dias específicos' && (!form.RECORRENCIA_DIAS || !form.RECORRENCIA_DIAS.length)) {
@@ -496,8 +504,17 @@
       if (!await UI.confirm('Aprovar conclusão', `A foto de “${task.TITULO}” comprova que a tarefa foi executada?`, 'Aprovar tarefa')) return;
       await App.server('tarefas.approve', { id: task.ID });
       mobileStatus = 'Concluída';
-      UI.toast('Tarefa aprovada.');
+      celebrateTaskPoints(taskPoints(task));
+      UI.toast(`Tarefa aprovada! +${taskPoints(task)} ponto${taskPoints(task) > 1 ? 's' : ''} para ${task.RESPONSAVEL_NOME}.`, 'success');
       await load();
+    }
+
+    function celebrateTaskPoints(points) {
+      const host = document.createElement('div');
+      host.className = 'task-points-celebration';
+      host.innerHTML = `<strong>+${points}</strong><span>ponto${points > 1 ? 's' : ''}</span>${Array.from({ length: 8 }, (_, index) => `<i style="--i:${index}"></i>`).join('')}`;
+      document.body.appendChild(host);
+      setTimeout(() => host.remove(), 1500);
     }
 
     function rejectTask(task) {

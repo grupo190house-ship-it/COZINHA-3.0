@@ -129,6 +129,7 @@
       setTheme(savedTheme);
       document.getElementById('themeToggle').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
       document.getElementById('logoutButton').onclick = async () => {
+        setMobileSidebar(false);
         if (!await UI.confirm('Encerrar sessão', 'Deseja realmente sair do sistema?', 'Sair')) return;
         try { await server('session.logout'); } catch (_) {}
         signedOut();
@@ -181,7 +182,56 @@
           if (input) input.value = value;
         });
       };
-      window.ModuleLoaders.perfil = async () => {};
+      window.ModuleLoaders.perfil = async () => {
+        const panel = document.getElementById('profilePointsPanel');
+        if (!panel) return;
+        try {
+          const rows = await server('tarefas.list');
+          renderProfilePoints(rows || []);
+        } catch (error) {
+          panel.innerHTML = `<div class="profile-points-error"><span class="material-symbols-rounded">error</span>${UI.esc(error.message)}</div>`;
+        }
+      };
+    }
+    function renderProfilePoints(rows) {
+      const panel = document.getElementById('profilePointsPanel');
+      if (!panel) return;
+      const ownRows = rows.filter(task => !state.user?.id || String(task.RESPONSAVEL_ID) === String(state.user.id));
+      const completed = ownRows.filter(task => task.STATUS === 'Concluída');
+      const pointsFor = task => ({ Urgente: 3, Alta: 2, Normal: 1, Baixa: 1 }[task.PRIORIDADE] || 1);
+      const points = completed.reduce((total, task) => total + pointsFor(task), 0);
+      const levels = [
+        { min: 0, name: 'Começando', icon: 'rocket_launch' },
+        { min: 10, name: 'Em ritmo', icon: 'local_fire_department' },
+        { min: 25, name: 'Destaque', icon: 'workspace_premium' },
+        { min: 50, name: 'Campeão', icon: 'trophy' }
+      ];
+      let levelIndex = 0;
+      levels.forEach((candidate, index) => { if (points >= candidate.min) levelIndex = index; });
+      const level = levels[levelIndex];
+      const next = levels[levelIndex + 1];
+      const progress = next ? Math.min(100, Math.round(((points - level.min) / (next.min - level.min)) * 100)) : 100;
+      const today = UI.today();
+      const doneToday = completed.filter(task => String(task.CONCLUIDO_EM || '').substring(0, 10) === today).length;
+      const recent = completed.slice().sort((a, b) => String(b.CONCLUIDO_EM || '').localeCompare(String(a.CONCLUIDO_EM || ''))).slice(0, 3);
+      panel.innerHTML = `
+        <div class="profile-score-hero">
+          <div class="profile-score-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="profile-level-icon"><span class="material-symbols-rounded">${level.icon}</span></div>
+          <div class="profile-score-copy"><small>Nível atual</small><strong>${UI.esc(level.name)}</strong><span>${next ? `${next.min - points} pontos para ${next.name}` : 'Você chegou ao nível máximo!'}</span></div>
+          <div class="profile-score-total"><strong>${points}</strong><span>pontos</span></div>
+        </div>
+        <div class="profile-level-track"><span style="width:${progress}%"></span></div>
+        <div class="profile-score-stats">
+          <div><span class="material-symbols-rounded">task_alt</span><strong>${completed.length}</strong><small>Concluídas</small></div>
+          <div><span class="material-symbols-rounded">today</span><strong>${doneToday}</strong><small>Hoje</small></div>
+          <div><span class="material-symbols-rounded">bolt</span><strong>${completed.filter(task => task.PRIORIDADE === 'Urgente').length}</strong><small>Urgentes</small></div>
+        </div>
+        <div class="profile-recent-head"><strong>Últimas conquistas</strong><small>Pontos entram após a aprovação da foto</small></div>
+        <div class="profile-achievements">${recent.length ? recent.map((task, index) => `
+          <div class="profile-achievement" style="--delay:${index * 70}ms">
+            <span class="material-symbols-rounded">verified</span><div><strong>${UI.esc(task.TITULO)}</strong><small>${UI.date(task.CONCLUIDO_EM)}</small></div><b>+${pointsFor(task)}</b>
+          </div>`).join('') : '<div class="profile-achievement-empty"><span class="material-symbols-rounded">emoji_events</span><span>Conclua sua primeira tarefa para começar.</span></div>'}</div>`;
     }
     function setTheme(theme) {
       document.documentElement.dataset.theme = theme;
