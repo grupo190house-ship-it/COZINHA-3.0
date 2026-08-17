@@ -194,11 +194,13 @@
         } catch (error) { UI.toast(error.message, 'danger'); }
         finally { UI.loading(button, false); }
       });
-      document.getElementById('view-perfil').addEventListener('click', async event => {
+      document.getElementById('pageContent').addEventListener('click', async event => {
         const penaltyButton = event.target.closest('[data-penalty-add]');
         if (penaltyButton) { openPenaltyForm(); return; }
         const pushButton = event.target.closest('[data-push-enable]');
         if (pushButton) { await enablePushNotifications(pushButton); return; }
+        const pushTestButton = event.target.closest('[data-push-test]');
+        if (pushTestButton) { await testPushNotification(pushTestButton); return; }
         const pushHelpButton = event.target.closest('[data-push-ios-help]');
         if (pushHelpButton) { openIosInstallHelp(); return; }
         const addRewardButton = event.target.closest('[data-reward-add]');
@@ -258,16 +260,17 @@
         const panel = document.getElementById('profilePointsPanel');
         if (!panel) return;
         try {
-          const [rows, redemptions, catalog, adjustments] = await Promise.all([server('tarefas.list'), server('pontos.resgates'), server('pontos.catalogo'), server('pontos.ajustes')]);
+          const [rows, redemptions, catalog, adjustments, missions] = await Promise.all([server('tarefas.list'), server('pontos.resgates'), server('pontos.catalogo'), server('pontos.ajustes'), server('pontos.missoes')]);
           rewardCatalog = catalog?.length ? catalog : defaultRewardCatalog.slice();
-          renderProfileExperience(rows || [], redemptions || [], adjustments || []);
+          renderProfileExperience(rows || [], redemptions || [], adjustments || [], missions || []);
           renderPushSettings();
         } catch (error) {
           panel.innerHTML = `<div class="profile-points-error"><span class="material-symbols-rounded">error</span>${UI.esc(error.message)}</div>`;
         }
       };
+      window.ModuleLoaders.loja = window.ModuleLoaders.perfil;
     }
-    function renderProfileExperience(rows, redemptions, adjustments) {
+    function renderProfileExperience(rows, redemptions, adjustments, missions) {
       const panel = document.getElementById('profilePointsPanel');
       if (!panel) return;
       const ownRows = rows.filter(task => !state.user?.id || String(task.RESPONSAVEL_ID) === String(state.user.id));
@@ -276,7 +279,8 @@
       const grossPoints = completed.reduce((total, task) => total + pointsFor(task), 0);
       const ownAdjustments = adjustments.filter(item => String(item.USUARIO_ID) === String(state.user?.id));
       const lostPoints = ownAdjustments.reduce((total, item) => total + Math.abs(Math.min(0, Number(item.PONTOS || 0))), 0);
-      const lifetimePoints = Math.max(0, grossPoints - lostPoints);
+      const bonusPoints = ownAdjustments.reduce((total, item) => total + Math.max(0, Number(item.PONTOS || 0)), 0);
+      const lifetimePoints = Math.max(0, grossPoints + bonusPoints - lostPoints);
       const ownRedemptions = redemptions.filter(item => String(item.USUARIO_ID) === String(state.user?.id));
       const spentPoints = ownRedemptions.filter(item => item.STATUS !== 'Cancelado').reduce((total, item) => total + Number(item.PONTOS || 0), 0);
       const balance = Math.max(0, lifetimePoints - spentPoints);
@@ -312,7 +316,19 @@
       renderRewardManager();
       renderPointStatement(completed, ownAdjustments, ownRedemptions, pointsFor);
       renderPenaltyManager(adjustments);
+      renderWeeklyMissions(missions || []);
       showPendingPointLoss(ownAdjustments);
+      const shopBalance = document.getElementById('shopBalancePanel');
+      if (shopBalance) shopBalance.innerHTML = `<span class="material-symbols-rounded">stars</span><div><small>Seu saldo disponível</small><strong>${balance} pontos</strong></div><button type="button" data-navigate="perfil">Ver jornada</button>`;
+    }
+    function renderWeeklyMissions(missions) {
+      const host = document.getElementById('profileWeeklyMissions');
+      if (!host) return;
+      const done = missions.filter(item => item.completed).length;
+      host.innerHTML = `<div class="profile-section-head mission-head"><div><small>Desafio da semana</small><strong>Missões da equipe</strong></div><span>${done}/${missions.length}</span></div><div class="weekly-mission-list">${missions.map((mission, index) => {
+        const progress = Math.min(100, Math.round((Number(mission.current || 0) / Math.max(1, Number(mission.target || 1))) * 100));
+        return `<article class="${mission.completed ? 'is-complete' : ''}" style="--delay:${index * 70}ms"><span class="material-symbols-rounded">${mission.completed ? 'verified' : mission.icon || 'target'}</span><div><strong>${UI.esc(mission.title)}</strong><small>${UI.esc(mission.description)}</small><i><b style="width:${progress}%"></b></i><em>${Math.min(mission.current, mission.target)}/${mission.target}</em></div><b>+${mission.bonus}</b></article>`;
+      }).join('')}</div><p class="mission-note">Bônus reduzidos para manter a loja desafiadora. Cada missão paga uma vez por semana.</p>`;
     }
     function renderKitchenBadges(points) {
       const host = document.getElementById('profileBadgesPanel');
@@ -377,7 +393,7 @@
       if (!host) return;
       const entries = [
         ...completed.map(task => ({ at: task.CONCLUIDO_EM, title: task.TITULO, detail: 'Tarefa aprovada', points: pointsFor(task), icon: 'task_alt' })),
-        ...adjustments.map(item => ({ at: item.CRIADO_EM, title: item.MOTIVO, detail: item.ORIGEM === 'ATRASO' ? 'Punição automática por atraso' : item.ORIGEM === 'NAO_REALIZADA' ? 'Tarefa não realizada' : `Retirado por ${item.ADMIN_NOME || 'Administração'}`, points: Number(item.PONTOS || 0), icon: 'trending_down' })),
+        ...adjustments.map(item => ({ at: item.CRIADO_EM, title: item.MOTIVO, detail: item.ORIGEM === 'MISSAO_SEMANAL' ? 'Bônus de missão semanal' : item.ORIGEM === 'ATRASO' ? 'Punição automática por atraso' : item.ORIGEM === 'NAO_REALIZADA' ? 'Tarefa não realizada' : `Retirado por ${item.ADMIN_NOME || 'Administração'}`, points: Number(item.PONTOS || 0), icon: Number(item.PONTOS || 0) > 0 ? 'workspace_premium' : 'trending_down' })),
         ...redemptions.filter(item => item.STATUS !== 'Cancelado').map(item => ({ at: item.CRIADO_EM, title: item.RECOMPENSA_NOME, detail: 'Resgate na loja', points: -Number(item.PONTOS || 0), icon: 'redeem' }))
       ].sort((a, b) => String(b.at || '').localeCompare(String(a.at || ''))).slice(0, 12);
       host.classList.toggle('d-none', !entries.length);
@@ -389,7 +405,7 @@
       const isAdmin = state.user?.role === 'Administrador';
       host.classList.toggle('d-none', !isAdmin);
       if (!isAdmin) { host.innerHTML = ''; return; }
-      const recent = adjustments.slice(0, 5);
+      const recent = adjustments.filter(item => Number(item.PONTOS || 0) < 0).slice(0, 5);
       host.innerHTML = `<div class="profile-section-head penalty-manager-head"><div><small>Disciplina da equipe</small><strong>Punições de pontos</strong></div><button type="button" data-penalty-add><span class="material-symbols-rounded">remove_circle</span>Retirar pontos</button></div><p class="reward-manager-intro">Toda retirada exige um motivo e aparece no extrato do funcionário.</p>${recent.length ? `<div class="penalty-history-list">${recent.map(item => `<article><span>−${Math.abs(Number(item.PONTOS || 0))}</span><div><strong>${UI.esc(item.USUARIO_NOME)}</strong><small>${UI.esc(item.MOTIVO)} · ${UI.date(item.CRIADO_EM)}</small></div></article>`).join('')}</div>` : '<div class="profile-achievement-empty"><span class="material-symbols-rounded">verified_user</span><span>Nenhuma punição registrada.</span></div>'}`;
     }
     function openPenaltyForm() {
@@ -433,7 +449,7 @@
       let icon = 'notifications_active', title = 'Notificações no telefone', copy = 'Receba tarefas novas, aprovações, devoluções e perdas de pontos.', action = '';
       if (!supported) { icon = 'notifications_off'; copy = 'Este navegador não oferece notificações. Atualize o navegador do telefone.'; }
       else if (iosNeedsInstall) { icon = 'add_to_home_screen'; copy = 'No iPhone, adicione o app à Tela de Início antes de ativar.'; action = '<button type="button" data-push-ios-help>Como instalar</button>'; }
-      else if (permission === 'granted') { icon = 'notifications_active'; copy = 'Ativadas neste aparelho. Os avisos chegam mesmo com o app fechado.'; action = '<span class="push-enabled-badge"><i></i>Ativadas</span>'; }
+      else if (permission === 'granted') { icon = 'notifications_active'; copy = 'Ativadas neste aparelho. Os avisos chegam mesmo com o app fechado.'; action = '<span class="push-enabled-badge"><i></i>Ativadas</span><button type="button" data-push-test>Testar agora</button>'; }
       else if (permission === 'denied') { icon = 'notifications_off'; copy = 'Os avisos foram bloqueados. Libere “Notificações” nas configurações do telefone.'; }
       else action = '<button type="button" data-push-enable>Ativar notificações</button>';
       host.innerHTML = `<div class="push-settings-icon"><span class="material-symbols-rounded">${icon}</span></div><div class="push-settings-copy"><small>iPhone e Android</small><strong>${title}</strong><span>${copy}</span></div><div class="push-settings-action">${action}</div>`;
@@ -492,6 +508,15 @@
       UI.loading(button, true, 'Ativando...');
       try { const active = await refreshPushRegistration(true); if (!active) throw new Error(Notification.permission === 'denied' ? 'As notificações estão bloqueadas nas configurações do telefone.' : 'Permissão de notificação não concedida.'); renderPushSettings(); UI.toast('Notificações reais ativadas neste telefone!', 'success'); }
       catch (error) { UI.toast(error.message, 'danger'); }
+      finally { UI.loading(button, false); }
+    }
+    async function testPushNotification(button) {
+      UI.loading(button, true, 'Enviando...');
+      try {
+        await refreshPushRegistration();
+        await server('notificacoes.test');
+        UI.toast('Teste enviado. Bloqueie a tela e aguarde alguns segundos.', 'success');
+      } catch (error) { UI.toast(error.message, 'danger'); }
       finally { UI.loading(button, false); }
     }
     function openRewardForm(reward = {}) {

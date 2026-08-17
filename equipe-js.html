@@ -53,15 +53,17 @@
           <div class="team-mobile-avatar">${UI.esc(initials(user.name))}</div>
           <div class="team-mobile-person">
             <strong>${UI.esc(user.name)}</strong>
-            <span>${UI.esc(user.email)}</span>
+            <span>${UI.esc(roleLabel(user.role))} · ${UI.esc(user.status)}</span>
           </div>
           <button class="team-mobile-edit" type="button" data-user-id="${UI.esc(user.id)}" aria-label="Editar ${UI.esc(user.name)}">
             <span class="material-symbols-rounded">edit</span>
           </button>
           <div class="team-mobile-meta">
-            <span>${UI.badge(roleLabel(user.role))}</span>
-            <span>${UI.badge(user.status)}</span>
-            <small>Último acesso <strong>${UI.date(user.lastAccess)}</strong></small>
+            <span class="team-metric"><b>${user.metrics?.today || 0}</b><small>feitas hoje</small></span>
+            <span class="team-metric"><b>${user.metrics?.pending || 0}</b><small>pendentes</small></span>
+            <span class="team-metric ${user.metrics?.late ? 'is-danger' : ''}"><b>${user.metrics?.late || 0}</b><small>atrasadas</small></span>
+            <span class="team-metric is-points"><b>${user.metrics?.weeklyPoints || 0}</b><small>pts semana</small></span>
+            <small class="team-last-activity">Atividade <strong>${UI.date(user.metrics?.lastActivity || user.lastAccess)}</strong></small>
           </div>
         </article>`).join('');
       list.querySelectorAll('[data-user-id]').forEach(button => {

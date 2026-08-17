@@ -40,6 +40,7 @@
 
     async function load() {
       if (!bound) bind();
+      if (navigator.onLine) await window.OfflineTasks?.flush?.().catch(() => 0);
       document.getElementById('taskBoard').innerHTML = statuses.map(column => `
         <section class="task-column ${column.tone} ${column.value === mobileStatus ? 'mobile-active' : ''}" data-task-status="${column.value}">
           <header class="task-column-head"><span class="skeleton" style="width:120px"></span></header>
@@ -50,6 +51,11 @@
       const result = await Promise.all(requests);
       tasks = result[0] || [];
       assignees = result[1] || [];
+      if (!isAdmin()) {
+        const returned = tasks.find(task => task.REVISAO_STATUS === 'Devolvida' && task.STATUS === 'Em andamento');
+        const next = returned || tasks.find(task => task.STATUS === 'Em andamento') || tasks.find(isOverdue) || tasks.find(task => task.STATUS === 'A fazer') || tasks.find(task => task.STATUS === 'Aguardando aprovação');
+        mobileStatus = next?.STATUS || 'A fazer';
+      }
       renderRoleControls();
       render();
     }
@@ -111,6 +117,7 @@
       renderMobileTabs(visible);
       renderActiveFilters();
       renderAttentionPanel();
+      renderEmployeeFocus();
 
       const canceled = visible.filter(task => task.STATUS === 'Cancelada');
       document.getElementById('taskArchiveCount').textContent = canceled.length;
@@ -136,6 +143,14 @@
         { key: 'soon', icon: 'hourglass_top', label: 'Vencem em até 2h', count: tasks.filter(isDueSoon).length, tone: 'warning' },
         { key: 'returned', icon: 'assignment_return', label: 'Fotos devolvidas', count: tasks.filter(task => task.REVISAO_STATUS === 'Devolvida').length, tone: 'returned' }
       ];
+      const total = items.reduce((sum, item) => sum + item.count, 0);
+      if (!total) {
+        document.getElementById('taskAttentionTitle').textContent = 'Tudo em dia';
+        document.getElementById('taskAttentionItems').innerHTML = '<div class="task-attention-clear"><span class="material-symbols-rounded">verified</span><div><strong>Nenhuma pendência agora</strong><small>A equipe está com a operação em ordem.</small></div></div>';
+        document.getElementById('clearAttentionFilter').classList.add('d-none');
+        return;
+      }
+      document.getElementById('taskAttentionTitle').textContent = 'Precisa de atenção';
       document.getElementById('taskAttentionItems').innerHTML = items.map(item => `
         <button type="button" class="task-attention-item ${item.tone} ${attentionFilter === item.key ? 'active' : ''}" data-attention-filter="${item.key}">
           <span class="material-symbols-rounded">${item.icon}</span>
@@ -143,6 +158,20 @@
           <span class="material-symbols-rounded">chevron_right</span>
         </button>`).join('');
       document.getElementById('clearAttentionFilter').classList.toggle('d-none', !attentionFilter);
+    }
+
+    function renderEmployeeFocus() {
+      const host = document.getElementById('employeeTaskFocus');
+      host.classList.toggle('d-none', isAdmin());
+      if (isAdmin()) return;
+      const task = tasks.find(item => item.REVISAO_STATUS === 'Devolvida' && item.STATUS === 'Em andamento') || tasks.find(item => item.STATUS === 'Em andamento') || tasks.find(isOverdue) || tasks.find(item => item.STATUS === 'A fazer');
+      if (!task) {
+        const doneToday = tasks.filter(item => item.STATUS === 'Concluída' && String(item.CONCLUIDO_EM || '').slice(0, 10) === UI.today()).length;
+        host.innerHTML = `<span class="material-symbols-rounded">celebration</span><div><small>Fila organizada</small><strong>Tudo concluído por agora</strong><p>${doneToday ? `${doneToday} tarefa(s) concluída(s) hoje.` : 'Aguarde uma nova tarefa da liderança.'}</p></div>`;
+        return;
+      }
+      const action = task.STATUS === 'A fazer' ? 'start' : 'complete';
+      host.innerHTML = `<span class="material-symbols-rounded">${task.REVISAO_STATUS === 'Devolvida' ? 'add_a_photo' : task.STATUS === 'A fazer' ? 'play_circle' : 'camera_alt'}</span><div><small>${task.REVISAO_STATUS === 'Devolvida' ? 'Foto devolvida · corrija agora' : 'Sua próxima ação'}</small><strong>${UI.esc(task.TITULO)}</strong><p>${UI.esc(relativeDeadline(task.PRAZO).text)}</p></div><button type="button" data-task-action="${action}" data-task-id="${UI.esc(task.ID)}">${action === 'start' ? 'Iniciar' : 'Enviar foto'}</button>`;
     }
 
     function renderMobileTabs(visible) {
@@ -196,7 +225,7 @@
         actions.push(taskAction('replay', 'Reabrir', 'reopen', task.ID, 'light', true));
       }
       return `
-        <article class="task-card ${overdue ? 'is-overdue' : ''} ${completed ? 'is-completed' : ''}" data-task-id="${UI.esc(task.ID)}">
+        <article class="task-card ${overdue ? 'is-overdue' : ''} ${completed ? 'is-completed is-history-card' : ''}" data-task-id="${UI.esc(task.ID)}">
           <div class="task-card-top">
             <span class="task-priority ${priorityTone(task.PRIORIDADE)}"><span></span>${UI.esc(task.PRIORIDADE || 'Normal')}</span>
             <span class="task-points-chip ${completed ? 'is-earned' : ''}"><span class="material-symbols-rounded">${completed ? 'stars' : 'bolt'}</span>${completed ? '+' : ''}${taskPoints(task)} pt${taskPoints(task) > 1 ? 's' : ''}</span>
@@ -430,11 +459,20 @@
           </form>`,
         onSubmit: async form => {
           if (form.CONFIRMADO !== true) throw new Error('Marque a confirmação de execução.');
-          const upload = await UI.uploadImageDetails(document.getElementById('taskEvidenceFile'), {
+          const fileInput = document.getElementById('taskEvidenceFile');
+          const metadata = {
             task: task.TITULO,
             user: App.state.user?.name || task.RESPONSAVEL_NOME,
             capturedAt: new Date().toLocaleString('pt-BR')
-          });
+          };
+          if (!fileInput?.files?.[0]) throw new Error('A foto de conclusão é obrigatória.');
+          if (!navigator.onLine) {
+            const payload = await window.OfflineTasks.prepare(fileInput.files[0], metadata);
+            await window.OfflineTasks.enqueue({ taskId: task.ID, userId: App.state.user?.id, payload, observation: form.OBSERVACAO_CONCLUSAO || '' });
+            UI.toast('Sem internet: foto guardada neste celular e será enviada automaticamente.', 'warning');
+            return;
+          }
+          const upload = await UI.uploadImageDetails(fileInput, metadata);
           if (!upload) throw new Error('A foto de conclusão é obrigatória.');
           await App.server('tarefas.complete', {
             id: task.ID,

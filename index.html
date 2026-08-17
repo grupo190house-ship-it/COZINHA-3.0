@@ -129,7 +129,7 @@
           mount('#mobileNavMount', 'mobile-nav.html')
         ]);
 
-        const pages = ['tarefas','operadores','perfil'];
+        const pages = ['tarefas','operadores','loja','perfil'];
         document.getElementById('pageContent').innerHTML = (await Promise.all(pages.map(name => fetchText(`${name}.html`)))).join('\n');
 
         const backendScripts = window.__COZINHA_PREVIEW__
