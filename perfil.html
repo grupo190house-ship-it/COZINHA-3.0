@@ -1,4 +1,26 @@
 <section id="view-perfil" class="page-view">
-  <div class="page-head"><div><span class="eyebrow">Minha conta</span><h1>Perfil</h1><p>Dados pessoais e senha de acesso.</p></div></div>
-  <div class="card-surface p-4" style="max-width:760px"><form id="profileForm" class="row g-3"><div class="col-md-6"><label class="form-label">Nome</label><input name="name" class="form-control" required></div><div class="col-md-6"><label class="form-label">Email</label><input name="email" class="form-control" disabled></div><div class="col-md-6"><label class="form-label">Senha atual</label><input name="currentPassword" type="password" class="form-control"></div><div class="col-md-6"><label class="form-label">Nova senha</label><input name="newPassword" type="password" class="form-control"></div><div class="col-12"><button class="btn btn-primary" type="submit">Atualizar perfil</button></div></form></div>
+  <div class="page-head"><div><span class="eyebrow">Minha jornada</span><h1>Meu perfil</h1><p>Acompanhe seu desempenho e mantenha seus dados atualizados.</p></div></div>
+
+  <section id="profilePointsPanel" class="profile-points-panel" aria-live="polite">
+    <div class="profile-points-loading"><span class="spinner-border spinner-border-sm"></span> Calculando seus pontos...</div>
+  </section>
+
+  <section class="profile-score-rules" aria-label="Como ganhar pontos">
+    <div><span class="profile-rule-dot normal"></span><strong>1 ponto</strong><small>Normal ou baixa</small></div>
+    <div><span class="profile-rule-dot high"></span><strong>2 pontos</strong><small>Prioridade alta</small></div>
+    <div><span class="profile-rule-dot urgent"></span><strong>3 pontos</strong><small>Tarefa urgente</small></div>
+  </section>
+
+  <details class="profile-settings">
+    <summary><span class="material-symbols-rounded">manage_accounts</span><span><strong>Dados e senha</strong><small>Editar informações da conta</small></span><span class="material-symbols-rounded profile-settings-chevron">expand_more</span></summary>
+    <div class="profile-settings-body">
+      <form id="profileForm" class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nome</label><input name="name" class="form-control" required></div>
+        <div class="col-md-6"><label class="form-label">Email</label><input name="email" class="form-control" disabled></div>
+        <div class="col-md-6"><label class="form-label">Senha atual</label><input name="currentPassword" type="password" class="form-control" autocomplete="current-password"></div>
+        <div class="col-md-6"><label class="form-label">Nova senha</label><input name="newPassword" type="password" class="form-control" autocomplete="new-password"></div>
+        <div class="col-12"><button class="btn btn-primary" type="submit"><span class="material-symbols-rounded">save</span>Salvar alterações</button></div>
+      </form>
+    </div>
+  </details>
 </section>

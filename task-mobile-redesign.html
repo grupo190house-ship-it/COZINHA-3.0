@@ -580,4 +580,179 @@
     .task-mobile-tab { font-size: 9px !important; }
     .task-card-schedule { grid-template-columns: 1fr; gap: 7px; }
   }
+
+  /* Confirmações rápidas: cartão central, sem o vazio de uma folha inteira. */
+  #appModal:has(.quick-confirm) .modal-dialog {
+    width: min(360px, calc(100% - 32px)) !important;
+    min-height: 100% !important;
+    margin: auto !important;
+    align-items: center !important;
+  }
+  #appModal:has(.quick-confirm) .modal-content {
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: hidden;
+    border-radius: 24px !important;
+    box-shadow: 0 24px 70px rgba(42, 31, 79, .24) !important;
+    animation: quickConfirmIn 220ms cubic-bezier(.2,.8,.2,1) both;
+  }
+  #appModal:has(.quick-confirm) .modal-header { padding: 18px 18px 10px !important; border-bottom: 0 !important; }
+  #appModal:has(.quick-confirm) .modal-body { padding: 4px 18px 16px !important; overflow: visible !important; }
+  #appModal:has(.quick-confirm) .modal-footer { padding: 12px 18px 18px !important; border-top: 1px solid #efedf4 !important; }
+  #appModal:has(.quick-confirm) .modal-footer .btn { min-height: 46px !important; border-radius: 14px !important; }
+  .quick-confirm { display: flex; align-items: flex-start; gap: 12px; }
+  .quick-confirm > .material-symbols-rounded { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; border-radius: 14px; background: #f1ecff; color: #7146e8; font-size: 23px; }
+  .quick-confirm.is-danger > .material-symbols-rounded { background: #fff0f1; color: #dc3545; }
+  .quick-confirm p { margin: 5px 0 0; color: #686b7d; font-size: 14px; line-height: 1.48; }
+
+  /* Nova tarefa: essenciais à vista e opções recolhidas. */
+  .task-form-compact { display: grid; gap: 12px; }
+  .task-form-main { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .task-form-field { min-width: 0; }
+  .task-title-field { grid-column: 1 / -1; }
+  .task-form-field .form-label,
+  .task-priority-picker legend { margin-bottom: 6px; color: #55586c; font-size: 11px; font-weight: 800; }
+  .task-priority-picker { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; border: 0; }
+  .task-priority-picker legend { grid-column: 1 / -1; }
+  .task-priority-picker label { min-width: 0; cursor: pointer; }
+  .task-priority-picker input { position: absolute; opacity: 0; pointer-events: none; }
+  .task-priority-picker label > span { min-height: 51px; display: grid; grid-template-columns: 9px 1fr; grid-template-rows: auto auto; align-content: center; column-gap: 7px; padding: 8px 9px; border: 1px solid #e7e4ee; border-radius: 13px; background: #fff; transition: transform .16s ease, border-color .16s ease, background .16s ease; }
+  .task-priority-picker i { width: 8px; height: 8px; grid-row: 1 / 3; align-self: center; border-radius: 50%; background: #3b82f6; }
+  .task-priority-picker strong { color: #3e4052; font-size: 11px; line-height: 1.2; }
+  .task-priority-picker small { color: #9698a7; font-size: 8px; font-weight: 750; }
+  .task-priority-picker .high i { background: #f59e0b; }
+  .task-priority-picker .urgent i { background: #ef4444; }
+  .task-priority-picker input:checked + span { border-color: #8b5cf6; background: #f5f1ff; box-shadow: 0 0 0 2px rgba(139,92,246,.11); transform: translateY(-1px); }
+  .task-form-more { overflow: hidden; border: 1px solid #e9e6f0; border-radius: 14px; background: #faf9fd; }
+  .task-form-more > summary { min-height: 54px; display: grid; grid-template-columns: 34px 1fr 22px; align-items: center; gap: 9px; padding: 9px 12px; color: #65687b; cursor: pointer; list-style: none; }
+  .task-form-more > summary::-webkit-details-marker { display: none; }
+  .task-form-more > summary > .material-symbols-rounded:first-child { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: #eee9ff; color: #7146e8; font-size: 19px; }
+  .task-form-more > summary strong,
+  .task-form-more > summary small { display: block; }
+  .task-form-more > summary strong { color: #45475a; font-size: 11px; }
+  .task-form-more > summary small { margin-top: 2px; font-size: 8.5px; }
+  .task-more-chevron { font-size: 19px; transition: transform .18s ease; }
+  .task-form-more[open] .task-more-chevron { transform: rotate(180deg); }
+  .task-form-more-body { display: grid; gap: 11px; padding: 12px; border-top: 1px solid #ebe8f1; animation: detailsReveal 180ms ease both; }
+  .task-form-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Cartões com pontuação e leitura mais rápida. */
+  .task-card-top { flex-wrap: wrap; }
+  .task-points-chip { min-height: 24px; display: inline-flex; align-items: center; gap: 3px; margin-left: auto; padding: 4px 7px; border-radius: 999px; background: #f5f2fb; color: #77798d; font-size: 8.5px; font-weight: 850; }
+  .task-points-chip .material-symbols-rounded { font-size: 14px; }
+  .task-points-chip.is-earned { background: linear-gradient(135deg,#fff2be,#ffe6a1); color: #8a5900; box-shadow: 0 3px 10px rgba(219,155,0,.15); }
+  .task-card { position: relative; overflow: hidden; }
+  .task-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: linear-gradient(180deg,#9b6df3,#d946ef); opacity: .65; }
+  .task-card.is-completed::before { background: linear-gradient(180deg,#22c55e,#14b8a6); }
+  .task-column-list > .task-card { animation: taskCardEnter 320ms cubic-bezier(.2,.75,.2,1) both; }
+  .task-column-list > .task-card:nth-child(2) { animation-delay: 45ms; }
+  .task-column-list > .task-card:nth-child(3) { animation-delay: 90ms; }
+  .task-column-list > .task-card:nth-child(4) { animation-delay: 135ms; }
+
+  /* Perfil gamificado. */
+  #view-perfil { width: min(680px, 100%); }
+  .profile-points-panel { overflow: hidden; margin-bottom: 11px; border: 1px solid rgba(139,92,246,.18); border-radius: 22px; background: linear-gradient(145deg,#3d246f 0%,#7447d9 55%,#cb44e4 120%); color: #fff; box-shadow: 0 18px 42px rgba(90,55,165,.22); animation: profilePanelIn 420ms cubic-bezier(.2,.75,.2,1) both; }
+  .profile-points-loading,
+  .profile-points-error { min-height: 170px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 20px; }
+  .profile-score-hero { min-height: 126px; position: relative; display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 11px; padding: 20px 18px 13px; }
+  .profile-level-icon { width: 52px; height: 52px; position: relative; z-index: 1; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.24); border-radius: 17px; background: rgba(255,255,255,.14); box-shadow: inset 0 1px rgba(255,255,255,.2); backdrop-filter: blur(10px); }
+  .profile-level-icon .material-symbols-rounded { font-size: 29px; }
+  .profile-score-copy { position: relative; z-index: 1; }
+  .profile-score-copy small,
+  .profile-score-copy strong,
+  .profile-score-copy span { display: block; }
+  .profile-score-copy small { color: rgba(255,255,255,.7); font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .profile-score-copy strong { margin-top: 2px; font-size: 20px; letter-spacing: -.03em; }
+  .profile-score-copy span { margin-top: 4px; color: rgba(255,255,255,.72); font-size: 9px; }
+  .profile-score-total { position: relative; z-index: 1; text-align: right; }
+  .profile-score-total strong,
+  .profile-score-total span { display: block; }
+  .profile-score-total strong { font-size: 38px; line-height: .95; letter-spacing: -.06em; }
+  .profile-score-total span { margin-top: 4px; color: #ffe8a3; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+  .profile-score-orbit { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .profile-score-orbit::before { content: ''; position: absolute; width: 160px; height: 160px; top: -82px; right: -38px; border: 1px solid rgba(255,255,255,.13); border-radius: 50%; }
+  .profile-score-orbit i { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #ffe28b; box-shadow: 0 0 13px #ffe28b; animation: scoreSparkle 2.4s ease-in-out infinite; }
+  .profile-score-orbit i:nth-child(1) { top: 22px; left: 47%; }
+  .profile-score-orbit i:nth-child(2) { top: 66px; right: 19%; animation-delay: .7s; }
+  .profile-score-orbit i:nth-child(3) { bottom: 18px; left: 18%; animation-delay: 1.3s; }
+  .profile-level-track { height: 5px; margin: 0 18px 15px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.15); }
+  .profile-level-track span { height: 100%; display: block; border-radius: inherit; background: linear-gradient(90deg,#ffe17a,#fff4bf); box-shadow: 0 0 14px rgba(255,225,122,.65); animation: progressGrow 700ms .18s ease both; transform-origin: left; }
+  .profile-score-stats { display: grid; grid-template-columns: repeat(3,1fr); border-top: 1px solid rgba(255,255,255,.12); border-bottom: 1px solid rgba(255,255,255,.12); background: rgba(18,8,44,.13); }
+  .profile-score-stats > div { min-height: 70px; display: grid; grid-template-columns: 22px auto; grid-template-rows: auto auto; align-content: center; justify-content: center; column-gap: 5px; border-right: 1px solid rgba(255,255,255,.1); }
+  .profile-score-stats > div:last-child { border-right: 0; }
+  .profile-score-stats .material-symbols-rounded { grid-row: 1 / 3; align-self: center; color: #ffe28b; font-size: 20px; }
+  .profile-score-stats strong { font-size: 16px; line-height: 1; }
+  .profile-score-stats small { margin-top: 3px; color: rgba(255,255,255,.68); font-size: 8px; }
+  .profile-recent-head { display: flex; align-items: end; justify-content: space-between; gap: 10px; padding: 14px 15px 8px; }
+  .profile-recent-head strong { font-size: 11px; }
+  .profile-recent-head small { color: rgba(255,255,255,.6); font-size: 7.5px; text-align: right; }
+  .profile-achievements { display: grid; gap: 6px; padding: 0 10px 11px; }
+  .profile-achievement { min-height: 48px; display: grid; grid-template-columns: 31px 1fr auto; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid rgba(255,255,255,.12); border-radius: 13px; background: rgba(255,255,255,.09); animation: achievementIn 300ms calc(250ms + var(--delay)) ease both; }
+  .profile-achievement > .material-symbols-rounded { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 10px; background: rgba(255,226,139,.16); color: #ffe28b; font-size: 18px; }
+  .profile-achievement strong,
+  .profile-achievement small { display: block; }
+  .profile-achievement strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-achievement small { margin-top: 2px; color: rgba(255,255,255,.6); font-size: 7.5px; }
+  .profile-achievement b { color: #ffe28b; font-size: 12px; }
+  .profile-achievement-empty { min-height: 74px; display: flex; align-items: center; justify-content: center; gap: 8px; color: rgba(255,255,255,.7); font-size: 9px; }
+  .profile-score-rules { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; margin-bottom: 11px; }
+  .profile-score-rules > div { min-width: 0; padding: 10px 8px; border: 1px solid #e9e6f0; border-radius: 14px; background: #fff; box-shadow: 0 4px 14px rgba(48,39,82,.04); }
+  .profile-rule-dot { width: 7px; height: 7px; display: inline-block; margin-right: 4px; border-radius: 50%; background: #3b82f6; }
+  .profile-rule-dot.high { background: #f59e0b; }
+  .profile-rule-dot.urgent { background: #ef4444; }
+  .profile-score-rules strong,
+  .profile-score-rules small { display: block; }
+  .profile-score-rules strong { display: inline; color: #383a4c; font-size: 10px; }
+  .profile-score-rules small { margin-top: 3px; overflow: hidden; color: #8b8e9f; font-size: 7.5px; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-settings { overflow: hidden; margin-bottom: 16px; border: 1px solid #e7e5ed; border-radius: 17px; background: #fff; box-shadow: 0 6px 20px rgba(48,39,82,.05); }
+  .profile-settings > summary { min-height: 62px; display: grid; grid-template-columns: 38px 1fr 22px; align-items: center; gap: 10px; padding: 10px 13px; list-style: none; cursor: pointer; }
+  .profile-settings > summary::-webkit-details-marker { display: none; }
+  .profile-settings > summary > .material-symbols-rounded:first-child { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: #f1ecff; color: #7146e8; font-size: 21px; }
+  .profile-settings > summary strong,
+  .profile-settings > summary small { display: block; }
+  .profile-settings > summary strong { color: #3c3e50; font-size: 12px; }
+  .profile-settings > summary small { margin-top: 2px; color: #9294a4; font-size: 8.5px; }
+  .profile-settings-chevron { color: #858899; font-size: 19px; transition: transform .18s ease; }
+  .profile-settings[open] .profile-settings-chevron { transform: rotate(180deg); }
+  .profile-settings-body { padding: 13px; border-top: 1px solid #efedf4; animation: detailsReveal 180ms ease both; }
+
+  .task-points-celebration { width: 128px; height: 128px; position: fixed; top: 50%; left: 50%; z-index: 2000; display: grid; place-content: center; border-radius: 50%; background: linear-gradient(145deg,#7043dc,#d946ef); color: #fff; box-shadow: 0 24px 60px rgba(92,50,177,.35); text-align: center; transform: translate(-50%,-50%); animation: pointsPop 1.45s ease both; pointer-events: none; }
+  .task-points-celebration strong { font-size: 36px; line-height: .9; }
+  .task-points-celebration span { margin-top: 4px; color: #ffe99f; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+  .task-points-celebration i { width: 7px; height: 7px; position: absolute; top: 50%; left: 50%; border-radius: 50%; background: #ffe17a; animation: pointParticle 900ms calc(var(--i) * 35ms) ease-out both; transform: rotate(calc(var(--i) * 45deg)) translateY(-74px); }
+
+  @keyframes quickConfirmIn { from { opacity: 0; transform: scale(.92) translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes detailsReveal { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+  @keyframes taskCardEnter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes profilePanelIn { from { opacity: 0; transform: translateY(16px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes scoreSparkle { 0%,100% { opacity: .25; transform: scale(.7); } 50% { opacity: 1; transform: scale(1.25); } }
+  @keyframes progressGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes achievementIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+  @keyframes pointsPop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.45); } 18% { opacity: 1; transform: translate(-50%,-50%) scale(1.08); } 30%,75% { transform: translate(-50%,-50%) scale(1); } 100% { opacity: 0; transform: translate(-50%,-58%) scale(.9); } }
+  @keyframes pointParticle { from { opacity: 0; transform: rotate(calc(var(--i) * 45deg)) translateY(-35px) scale(.2); } 35% { opacity: 1; } to { opacity: 0; transform: rotate(calc(var(--i) * 45deg)) translateY(-88px) scale(1); } }
+
+  @media (max-width: 900px) {
+    #appModal:has(.task-form-compact) .modal-content { min-height: 0 !important; height: auto !important; max-height: 82dvh !important; }
+    #appModal:has(.task-form-compact) .modal-body { padding-block: 10px !important; }
+    .task-form-main { grid-template-columns: 1fr; gap: 10px; }
+    .task-title-field { grid-column: 1; }
+    .task-priority-picker { grid-column: 1; }
+    .task-form-compact .form-control,
+    .task-form-compact .form-select { min-height: 46px !important; border-radius: 12px !important; }
+    .task-form-options-grid { grid-template-columns: 1fr; }
+    #view-perfil .page-head { min-height: 48px; display: flex !important; align-items: center !important; margin-bottom: 8px !important; }
+    #view-perfil .page-head .eyebrow,
+    #view-perfil .page-head p { display: none !important; }
+    #view-perfil .page-head h1 { margin: 0 !important; font-size: 24px !important; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .task-column-list > .task-card,
+    .profile-points-panel,
+    .profile-score-orbit i,
+    .profile-level-track span,
+    .profile-achievement,
+    .task-points-celebration { animation: none !important; }
+  }
 </style>

@@ -95,7 +95,7 @@
     const confirm = (title, message, confirmLabel = 'Confirmar', danger = false) => new Promise(resolve => {
       openModal({
         title, eyebrow: 'Confirmação', size: 'sm',
-        body: `<p class="mb-0 text-secondary">${esc(message)}</p>`,
+        body: `<div class="quick-confirm ${danger ? 'is-danger' : ''}"><span class="material-symbols-rounded">${danger ? 'warning' : 'help'}</span><p>${esc(message)}</p></div>`,
         footer: `<button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button id="confirmModalButton" type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}">${esc(confirmLabel)}</button>`
       });
       document.getElementById('confirmModalButton').onclick = () => { closeModal(); resolve(true); };
