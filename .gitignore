@@ -2,6 +2,7 @@
 node_modules/
 coverage/
 *.log
+worker/dist/
 
 # Credenciais e vínculo privado do Google Apps Script
 .clasp.json

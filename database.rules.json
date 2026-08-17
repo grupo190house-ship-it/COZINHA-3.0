@@ -18,7 +18,7 @@
         },
         "push_tokens": {
           "$uid": {
-            ".read": "auth != null && (auth.uid === $uid || root.child('cozinhaflow/v1/users').child(auth.uid).child('PERFIL').val() === 'Administrador')",
+            ".read": "auth != null && root.child('cozinhaflow/v1/users').child(auth.uid).child('STATUS').val() === 'Ativo'",
             ".write": "auth != null && (auth.uid === $uid || root.child('cozinhaflow/v1/users').child(auth.uid).child('PERFIL').val() === 'Administrador')"
           }
         },

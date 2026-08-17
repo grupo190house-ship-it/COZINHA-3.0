@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cozinhaflow-push-gratis",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "FIREBASE_PROJECT_ID": "cozinha-1cc2b",
+    "FIREBASE_DATABASE_URL": "https://cozinha-1cc2b-default-rtdb.firebaseio.com",
+    "APP_ORIGIN": "https://grupo190house-ship-it.github.io",
+    "APP_URL": "https://grupo190house-ship-it.github.io/COZINHA-3.0/",
+    "VAPID_CONTACT": "mailto:grupo190house@gmail.com"
+  },
+  "secrets": {
+    "required": ["VAPID_PRIVATE_JWK"]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

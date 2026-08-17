@@ -1,18 +1,19 @@
-/* Firebase Cloud Messaging: recebe avisos quando o app está fechado. */
-importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
-
-firebase.initializeApp({
-  apiKey: 'AIzaSyDD8Uco12pmiuR68h9Icu9kkCBfGxaCcy8',
-  authDomain: 'cozinha-1cc2b.firebaseapp.com',
-  databaseURL: 'https://cozinha-1cc2b-default-rtdb.firebaseio.com',
-  projectId: 'cozinha-1cc2b',
-  storageBucket: 'cozinha-1cc2b.firebasestorage.app',
-  messagingSenderId: '562356930407',
-  appId: '1:562356930407:web:2e8ec01c317529480791c2'
+/* Web Push gratuito: recebe avisos no iPhone, Android e computador. */
+self.addEventListener('push', event => {
+  let payload = {};
+  try { payload = event.data?.json?.() || {}; } catch { payload = { body: event.data?.text?.() || '' }; }
+  const title = payload.title || 'CozinhaFlow';
+  const options = {
+    body: payload.body || 'Você recebeu uma atualização.',
+    icon: payload.icon || './app-icon-192.png',
+    badge: payload.badge || './app-icon-192.png',
+    tag: payload.tag || 'cozinhaflow',
+    data: payload.data || { url: './' },
+    vibrate: [120, 60, 120],
+    renotify: true
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
 });
-
-firebase.messaging();
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();

@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const firebaseConfig={apiKey:'AIzaSyDD8Uco12pmiuR68h9Icu9kkCBfGxaCcy8',authDomain:'cozinha-1cc2b.firebaseapp.com',databaseURL:'https://cozinha-1cc2b-default-rtdb.firebaseio.com',projectId:'cozinha-1cc2b',storageBucket:'cozinha-1cc2b.firebasestorage.app',messagingSenderId:'562356930407',appId:'1:562356930407:web:2e8ec01c317529480791c2',measurementId:'G-26QE2DJFKW'};
-  const ROOT='cozinhaflow/v1',VERSION='1.5.0';
+  const ROOT='cozinhaflow/v1',VERSION='1.5.0',FREE_PUSH_ENDPOINT='https://cozinhaflow-push-gratis.gleucedias1.workers.dev/send';
   const fb=firebase.apps.length?firebase.app():firebase.initializeApp(firebaseConfig),auth=fb.auth(),db=fb.database(),storage=fb.storage();
   try{firebase.analytics?.isSupported?.().then(ok=>ok&&fb.analytics()).catch(()=>{});}catch(_){ }
   const ref=p=>db.ref(`${ROOT}/${p}`),now=()=>new Date().toISOString(),today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()),num=v=>Number(v||0),vals=v=>Object.values(v||{}).filter(Boolean),id=c=>ref(c).push().key;
@@ -19,7 +19,19 @@
     if(!recipients.length)return null;
     const ID=id('notificacoes'),record={ID,DESTINATARIOS:recipients,TITULO:String(title||'CozinhaFlow'),MENSAGEM:String(body||''),TIPO:eventType,SEVERIDADE:eventType==='PUNICAO'?'danger':'info',LIDA_POR:{},DADOS:data||{},CRIADO_EM:now()};
     await Promise.all([set(`notificacoes/${ID}`,record),set(`push_queue/${ID}`,{...record,STATUS:'Pendente',TENTATIVAS:0})]);
+    try{await sendFreePush(ID);}catch(error){console.warn('Aviso no telefone pendente:',error?.message||error);await upd(`push_queue/${ID}`,{STATUS:'Erro',ERRO:String(error?.message||'Falha no serviço gratuito').slice(0,180),ATUALIZADO_EM:now()}).catch(()=>{});}
     return record;
+  }
+  async function sendFreePush(notificationId){
+    if(!auth.currentUser)return null;
+    const token=await auth.currentUser.getIdToken();
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+    try{
+      const response=await fetch(FREE_PUSH_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({notificationId}),signal:controller.signal});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok)throw err(result.error||'O serviço gratuito de notificações não respondeu.');
+      return result;
+    }finally{clearTimeout(timer);}
   }
   async function adminIds(){return(await list('users')).filter(x=>x.STATUS==='Ativo'&&x.PERFIL==='Administrador').map(x=>x.ID);}
   const code=(p,rows)=>`${p}-${String(rows.length+1).padStart(4,'0')}`;
@@ -124,9 +136,9 @@
     await upd(`pontos_resgates/${record.ID}`,patch);await audit('Entregar recompensa',u,'pontos',record.ID,record.RECOMPENSA_NOME);await queueNotification(record.USUARIO_ID,'Recompensa entregue',`${record.RECOMPENSA_NOME} foi marcada como entregue.`,'RECOMPENSA',{redemptionId:record.ID});return{...record,...patch};
   }
   async function registerPushToken(p,u){
-    const token=String(p.token||'').trim(),deviceId=String(p.deviceId||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
-    if(!token||!deviceId)throw err('Não foi possível identificar este telefone.');
-    const record={ID:deviceId,USUARIO_ID:u.ID,TOKEN:token,PLATAFORMA:String(p.platform||'web').slice(0,40),USER_AGENT:String(p.userAgent||'').slice(0,300),ATUALIZADO_EM:now()};
+    const deviceId=String(p.deviceId||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80),subscription=p.subscription||{},endpoint=String(subscription.endpoint||'').trim(),p256dh=String(subscription.keys?.p256dh||''),authKey=String(subscription.keys?.auth||'');
+    if(!deviceId||!endpoint.startsWith('https://')||p256dh.length<40||authKey.length<12)throw err('Não foi possível identificar este telefone.');
+    const record={ID:deviceId,USUARIO_ID:u.ID,SUBSCRIPTION:{endpoint,keys:{p256dh,auth:authKey}},PLATAFORMA:String(p.platform||'web').slice(0,40),USER_AGENT:String(p.userAgent||'').slice(0,300),ATUALIZADO_EM:now()};
     await set(`push_tokens/${u.ID}/${deviceId}`,record);return{registered:true,updatedAt:record.ATUALIZADO_EM};
   }
   async function request(action,p={}){const u=await user();const commonActions=['session.me','session.logout','profile.save','lookups.get','tarefas.list','tarefas.start','tarefas.complete','tarefas.evidence','media.upload','notificacoes.list','notificacoes.read','notificacoes.refresh','pontos.catalogo','pontos.resgates','pontos.resgatar','pontos.ajustes','push.register'];const adminActions=['tarefas.assignees','tarefas.save','tarefas.approve','tarefas.reject','tarefas.cancel','tarefas.reopen','usuarios.list','usuarios.save','pontos.entregar','pontos.recompensa.salvar','pontos.punir','config.get','config.save'];if(!commonActions.includes(action)&&!(u.PERFIL==='Administrador'&&adminActions.includes(action)))throw err('Este aplicativo é exclusivo para tarefas.','FORBIDDEN');const routes={
