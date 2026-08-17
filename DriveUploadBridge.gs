@@ -68,7 +68,7 @@ function driveBridgeUpload_(data) {
   }
 
   var fileId = file.getId();
-  var directUrl = 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
+  var directUrl = 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(fileId) + '&export=view&confirm=t';
   var media = {
     ID: fileId,
     provider: 'google-drive',

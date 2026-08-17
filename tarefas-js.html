@@ -206,7 +206,7 @@
           ${description}
           ${task.FOTO_THUMBNAIL_URL && ['Aguardando aprovação', 'Concluída'].includes(task.STATUS) ? `
             <button type="button" class="task-photo-thumbnail" data-task-action="evidence" data-task-id="${UI.esc(task.ID)}" aria-label="Ampliar foto de ${UI.esc(task.TITULO)}">
-              <img src="${UI.esc(task.FOTO_THUMBNAIL_URL)}" alt="Comprovante de ${UI.esc(task.TITULO)}" loading="lazy">
+              <img src="${UI.esc(task.FOTO_THUMBNAIL_URL)}" data-fallback-src="${UI.esc(task.FOTO_THUMBNAIL_FALLBACK_URL || '')}" alt="Comprovante de ${UI.esc(task.TITULO)}" loading="lazy">
               <span><span class="material-symbols-rounded">zoom_in</span>Ampliar comprovante</span>
             </button>` : ''}
           <div class="task-card-assignee">
@@ -464,13 +464,28 @@
         document.getElementById('modalTitle').textContent = evidence.title;
         document.getElementById('modalBody').innerHTML = `
           <div class="task-evidence">
-            <img src="${evidence.dataUrl}" alt="Foto de conclusão de ${UI.esc(evidence.title)}">
+            <div class="task-evidence-viewer">
+              <img id="taskEvidenceImage" src="${UI.esc(evidence.dataUrl)}" data-fallback-src="${UI.esc(evidence.fallbackUrl || '')}" alt="Foto de conclusão de ${UI.esc(evidence.title)}">
+              ${evidence.previewUrl ? `<iframe id="taskEvidenceDrivePreview" class="d-none" src="${UI.esc(evidence.previewUrl)}" title="Prévia da foto no Google Drive" loading="lazy" allow="autoplay"></iframe>` : ''}
+            </div>
             <div class="task-evidence-info">
               <span><span class="material-symbols-rounded">person</span><strong>${UI.esc(evidence.operator)}</strong></span>
               <span><span class="material-symbols-rounded">schedule</span>${UI.date(evidence.completedAt)}</span>
             </div>
             ${evidence.observation ? `<p><strong>Observação:</strong> ${UI.esc(evidence.observation)}</p>` : ''}
+            ${evidence.driveUrl ? `<a class="task-evidence-drive-link" href="${UI.esc(evidence.driveUrl)}" target="_blank" rel="noopener"><span class="material-symbols-rounded">open_in_new</span>Abrir foto no Google Drive</a>` : ''}
           </div>`;
+        const image = document.getElementById('taskEvidenceImage');
+        if (image) image.onerror = () => {
+          const fallback = image.dataset.fallbackSrc;
+          if (fallback && image.src !== fallback && image.dataset.fallbackTried !== 'true') {
+            image.dataset.fallbackTried = 'true';
+            image.src = fallback;
+            return;
+          }
+          image.classList.add('d-none');
+          document.getElementById('taskEvidenceDrivePreview')?.classList.remove('d-none');
+        };
       } catch (error) {
         UI.closeModal();
         UI.toast(error.message, 'danger');
@@ -580,6 +595,17 @@
         const button = event.target.closest('[data-task-action]');
         if (button) handleAction(button.dataset.taskAction, button.dataset.taskId);
       });
+      document.getElementById('view-tarefas').addEventListener('error', event => {
+        const image = event.target.closest?.('.task-photo-thumbnail img');
+        if (!image) return;
+        const fallback = image.dataset.fallbackSrc;
+        if (fallback && image.dataset.fallbackTried !== 'true') {
+          image.dataset.fallbackTried = 'true';
+          image.src = fallback;
+          return;
+        }
+        image.closest('.task-photo-thumbnail')?.classList.add('is-broken');
+      }, true);
     }
 
     window.ModuleLoaders.tarefas = load;

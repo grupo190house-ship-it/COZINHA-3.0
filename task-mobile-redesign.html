@@ -143,6 +143,9 @@
     background: #eceaf2;
   }
   .task-photo-thumbnail img { width: 100%; height: 132px; display: block; object-fit: cover; }
+  .task-photo-thumbnail.is-broken { min-height: 86px; display: grid; place-items: center; background: #f4f1fa; }
+  .task-photo-thumbnail.is-broken img { display: none; }
+  .task-photo-thumbnail.is-broken > span { position: static; background: #7146e8; }
   .task-photo-thumbnail > span {
     position: absolute;
     right: 7px;
@@ -158,6 +161,11 @@
     font-weight: 750;
   }
   .task-photo-thumbnail .material-symbols-rounded { font-size: 14px; }
+  .task-evidence-viewer { width: 100%; min-height: 260px; overflow: hidden; border-radius: 14px; background: #10131b; }
+  .task-evidence-viewer > img { width: 100%; max-height: 62vh; display: block; object-fit: contain; }
+  .task-evidence-viewer > iframe { width: 100%; height: min(62vh, 620px); display: block; border: 0; background: #10131b; }
+  .task-evidence-drive-link { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: #f1ecff; color: #7146e8; font-size: 10px; font-weight: 750; text-decoration: none; }
+  .task-evidence-drive-link .material-symbols-rounded { font-size: 16px; }
   .task-card-schedule em { display: block; margin-top: 3px; color: #999baa; font-size: 8px; font-style: normal; }
   .task-card-schedule .is-warning strong { color: #d98212; }
   .task-recurrence { display: flex; align-items: center; gap: 5px; margin-top: 9px; color: #7146e8; font-size: 9px; font-weight: 750; }
