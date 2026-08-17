@@ -717,6 +717,78 @@
   .profile-settings[open] .profile-settings-chevron { transform: rotate(180deg); }
   .profile-settings-body { padding: 13px; border-top: 1px solid #efedf4; animation: detailsReveal 180ms ease both; }
 
+  .profile-section-card { margin-bottom: 11px; padding: 14px; border: 1px solid #e8e5ef; border-radius: 19px; background: #fff; box-shadow: 0 7px 24px rgba(48,39,82,.055); }
+  .profile-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .profile-section-head small,
+  .profile-section-head strong { display: block; }
+  .profile-section-head small { color: #8c8f9f; font-size: 8px; font-weight: 800; letter-spacing: .055em; text-transform: uppercase; }
+  .profile-section-head strong { margin-top: 2px; color: #292a3d; font-size: 18px; letter-spacing: -.025em; }
+  .profile-section-head > span { padding: 5px 8px; border-radius: 999px; background: #f2edff; color: #7146e8; font-size: 8.5px; font-weight: 800; }
+  .profile-level-emoji { font-size: 28px; line-height: 1; }
+  .kitchen-badges-track { display: grid; grid-auto-flow: column; grid-auto-columns: 116px; gap: 8px; margin-inline: -14px; padding: 2px 14px 7px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .kitchen-badges-track::-webkit-scrollbar { display: none; }
+  .kitchen-badge { min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 8px; border: 1px solid #e8e5ef; border-radius: 17px; background: linear-gradient(160deg,#fff,#f8f6fc); text-align: center; scroll-snap-align: start; animation: badgeReveal 360ms calc(100ms + var(--delay)) cubic-bezier(.2,.75,.2,1) both; }
+  .kitchen-badge-medal { width: 64px; height: 64px; position: relative; display: grid; place-items: center; margin-bottom: 9px; border-radius: 50%; background: #efedf4; font-size: 27px; filter: grayscale(1); }
+  .kitchen-badge-medal::before,
+  .kitchen-badge-medal::after { content: ''; position: absolute; z-index: -1; bottom: -7px; width: 18px; height: 28px; background: #d9d5e3; }
+  .kitchen-badge-medal::before { left: 9px; transform: rotate(14deg); clip-path: polygon(0 0,100% 0,72% 100%,44% 72%,0 100%); }
+  .kitchen-badge-medal::after { right: 9px; transform: rotate(-14deg); clip-path: polygon(0 0,100% 0,100% 100%,56% 72%,28% 100%); }
+  .kitchen-badge strong { min-height: 30px; display: grid; place-items: center; color: #77798a; font-size: 10px; line-height: 1.25; }
+  .kitchen-badge small { margin-top: 4px; color: #a0a2af; font-size: 7.5px; line-height: 1.25; }
+  .kitchen-badge.is-unlocked { border-color: rgba(230,167,37,.28); background: radial-gradient(circle at 50% 10%,#fff9d7,#fff 67%); box-shadow: 0 8px 18px rgba(202,143,19,.09); }
+  .kitchen-badge.is-unlocked .kitchen-badge-medal { background: linear-gradient(145deg,#fff2a8,#f2b83c); box-shadow: inset 0 2px rgba(255,255,255,.7),0 7px 18px rgba(214,153,25,.24); filter: none; animation: medalFloat 2.5s ease-in-out infinite; }
+  .kitchen-badge.is-unlocked .kitchen-badge-medal::before,
+  .kitchen-badge.is-unlocked .kitchen-badge-medal::after { background: #9b62e8; }
+  .kitchen-badge.is-unlocked strong { color: #5c3c13; }
+  .kitchen-badge.is-unlocked small { color: #9a6b14; font-weight: 800; }
+  .rewards-head > span { background: #fff4c4; color: #7f5700; }
+  .rewards-head > span b { font-size: 12px; }
+  .reward-store-note { display: flex; align-items: flex-start; gap: 6px; margin: -3px 0 11px; padding: 8px 9px; border-radius: 11px; background: #f7f4ff; color: #77798c; font-size: 8.5px; line-height: 1.35; }
+  .reward-store-note .material-symbols-rounded { color: #7146e8; font-size: 15px; }
+  .rewards-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .reward-card { min-width: 0; position: relative; display: grid; grid-template-columns: 43px 1fr; grid-template-rows: auto auto; gap: 8px 9px; padding: 11px; overflow: hidden; border: 1px solid #e9e6f0; border-radius: 16px; background: linear-gradient(145deg,#fff,#faf9fd); animation: rewardCardIn 350ms calc(120ms + var(--delay)) cubic-bezier(.2,.75,.2,1) both; }
+  .reward-card::after { content: ''; position: absolute; width: 70px; height: 70px; top: -42px; right: -28px; border-radius: 50%; background: var(--reward-glow,#ede8fa); opacity: .7; }
+  .reward-emoji { width: 43px; height: 43px; position: relative; z-index: 1; display: grid; place-items: center; border-radius: 14px; background: var(--reward-bg,#f0ecfa); font-size: 23px; transition: transform .18s ease; }
+  .reward-card:active .reward-emoji { transform: rotate(-8deg) scale(1.08); }
+  .reward-copy { min-width: 0; position: relative; z-index: 1; }
+  .reward-copy strong,
+  .reward-copy small { display: block; }
+  .reward-copy strong { color: #353749; font-size: 10px; line-height: 1.2; }
+  .reward-copy small { display: -webkit-box; margin-top: 3px; overflow: hidden; color: #8b8e9e; font-size: 7.5px; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .reward-price { min-height: 29px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 4px 6px; border-radius: 9px; background: #fff4c9; color: #865d03; font-size: 9px; font-weight: 900; }
+  .reward-price .material-symbols-rounded { font-size: 14px; }
+  .reward-card button { min-width: 0; min-height: 29px; padding: 4px 6px; border: 0; border-radius: 9px; background: #7447db; color: #fff; font-size: 8.5px; font-weight: 850; }
+  .reward-card button:disabled { background: #efedf4; color: #9b9daa; }
+  .reward-card.is-featured { grid-column: 1 / -1; grid-template-columns: 54px 1fr 66px 82px; grid-template-rows: auto; align-items: center; border-color: rgba(236,86,139,.25); background: linear-gradient(125deg,#fff3f8,#fff8dc); }
+  .reward-card.is-featured .reward-emoji { width: 54px; height: 54px; font-size: 29px; background: #fff; box-shadow: 0 8px 18px rgba(205,78,121,.1); }
+  .reward-featured-label { position: absolute; top: 0; right: 0; z-index: 2; padding: 4px 7px; border-radius: 0 15px 0 10px; background: #d94675; color: #fff; font-size: 6.5px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+  .tone-ice { --reward-bg:#e7f5ff; --reward-glow:#bfe7ff; }.tone-berry { --reward-bg:#fff0f7; --reward-glow:#ffcce4; }.tone-gold { --reward-bg:#fff6d8; --reward-glow:#ffe68c; }.tone-pizza { --reward-bg:#fff0df; --reward-glow:#ffc58b; }.tone-mint { --reward-bg:#e8fff5; --reward-glow:#aef0d1; }.tone-burger { --reward-bg:#fff0e4; --reward-glow:#ffc597; }.tone-violet { --reward-bg:#f1ebff; --reward-glow:#d7c4ff; }.tone-fire { --reward-bg:#fff0e9; --reward-glow:#ffb39d; }.tone-blue { --reward-bg:#eaf1ff; --reward-glow:#bad0ff; }.tone-ink { --reward-bg:#eeeff5; --reward-glow:#c9ccda; }
+  .reward-history-list,
+  .admin-reward-list { display: grid; gap: 7px; }
+  .reward-history-item { min-height: 49px; display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid #eeeaf3; border-radius: 13px; background: #fbfafd; }
+  .reward-history-item > span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: #f3effd; font-size: 18px; }
+  .reward-history-item strong,
+  .reward-history-item small { display: block; }
+  .reward-history-item strong { color: #45475a; font-size: 10px; }
+  .reward-history-item small { margin-top: 2px; color: #9799a7; font-size: 7.5px; }
+  .reward-history-item > b { padding: 4px 6px; border-radius: 999px; background: #fff3cf; color: #8a650b; font-size: 7.5px; }
+  .reward-history-item > b.status-entregue { background: #e8fbf2; color: #118257; }
+  .profile-admin-rewards { border-color: rgba(217,70,239,.22); background: linear-gradient(145deg,#fff,#fbf5ff); }
+  .admin-reward-head > span { min-width: 25px; text-align: center; }
+  .admin-reward-list article { min-height: 58px; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 9px; padding: 8px; border: 1px solid #ebe5f1; border-radius: 14px; background: #fff; }
+  .admin-reward-list article > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: #f5f0ff; font-size: 20px; }
+  .admin-reward-list strong,
+  .admin-reward-list small { display: block; }
+  .admin-reward-list strong { color: #3c3e50; font-size: 10.5px; }
+  .admin-reward-list small { margin-top: 2px; color: #8f91a0; font-size: 8px; }
+  .admin-reward-list button { min-height: 35px; display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border: 0; border-radius: 10px; background: #7447db; color: #fff; font-size: 8px; font-weight: 800; }
+  .admin-reward-list button .material-symbols-rounded { font-size: 15px; }
+  .reward-celebration { width: 210px; min-height: 210px; position: fixed; top: 50%; left: 50%; z-index: 2100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; border: 2px solid rgba(255,255,255,.45); border-radius: 50%; background: radial-gradient(circle at 35% 25%,#c064ff,#6231c7 72%); color: #fff; box-shadow: 0 30px 90px rgba(77,36,157,.48); text-align: center; transform: translate(-50%,-50%); animation: rewardCelebration 2s ease both; pointer-events: none; }
+  .reward-celebration-emoji { font-size: 55px; animation: rewardEmojiDance .55s .2s ease both; }
+  .reward-celebration strong { margin-top: 5px; font-size: 22px; }
+  .reward-celebration > span { max-width: 150px; margin-top: 3px; color: #ffe99c; font-size: 10px; font-weight: 750; }
+  .reward-celebration i { width: 8px; height: 8px; position: absolute; top: 50%; left: 50%; border-radius: 2px; background: hsl(calc(var(--i) * 36deg),90%,65%); animation: rewardConfetti 1.1s calc(var(--i) * 35ms) ease-out both; transform: rotate(calc(var(--i) * 36deg)) translateY(-120px); }
+
   .task-points-celebration { width: 128px; height: 128px; position: fixed; top: 50%; left: 50%; z-index: 2000; display: grid; place-content: center; border-radius: 50%; background: linear-gradient(145deg,#7043dc,#d946ef); color: #fff; box-shadow: 0 24px 60px rgba(92,50,177,.35); text-align: center; transform: translate(-50%,-50%); animation: pointsPop 1.45s ease both; pointer-events: none; }
   .task-points-celebration strong { font-size: 36px; line-height: .9; }
   .task-points-celebration span { margin-top: 4px; color: #ffe99f; font-size: 10px; font-weight: 800; text-transform: uppercase; }
@@ -731,6 +803,12 @@
   @keyframes achievementIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
   @keyframes pointsPop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.45); } 18% { opacity: 1; transform: translate(-50%,-50%) scale(1.08); } 30%,75% { transform: translate(-50%,-50%) scale(1); } 100% { opacity: 0; transform: translate(-50%,-58%) scale(.9); } }
   @keyframes pointParticle { from { opacity: 0; transform: rotate(calc(var(--i) * 45deg)) translateY(-35px) scale(.2); } 35% { opacity: 1; } to { opacity: 0; transform: rotate(calc(var(--i) * 45deg)) translateY(-88px) scale(1); } }
+  @keyframes badgeReveal { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+  @keyframes medalFloat { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-4px) rotate(2deg); } }
+  @keyframes rewardCardIn { from { opacity: 0; transform: translateY(11px); } to { opacity: 1; transform: none; } }
+  @keyframes rewardCelebration { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.35) rotate(-9deg); } 15% { opacity: 1; transform: translate(-50%,-50%) scale(1.08) rotate(2deg); } 25%,78% { opacity: 1; transform: translate(-50%,-50%) scale(1); } 100% { opacity: 0; transform: translate(-50%,-56%) scale(.9); } }
+  @keyframes rewardEmojiDance { 0% { transform: scale(.4) rotate(-18deg); } 55% { transform: scale(1.22) rotate(12deg); } 100% { transform: none; } }
+  @keyframes rewardConfetti { from { opacity: 0; transform: rotate(calc(var(--i) * 36deg)) translateY(-70px) scale(.3); } 30% { opacity: 1; } to { opacity: 0; transform: rotate(calc(var(--i) * 36deg)) translateY(-150px) scale(1) rotate(220deg); } }
 
   @media (max-width: 900px) {
     #appModal:has(.task-form-compact) .modal-content { min-height: 0 !important; height: auto !important; max-height: 82dvh !important; }
@@ -745,6 +823,13 @@
     #view-perfil .page-head .eyebrow,
     #view-perfil .page-head p { display: none !important; }
     #view-perfil .page-head h1 { margin: 0 !important; font-size: 24px !important; }
+    .profile-section-card { padding: 12px; border-radius: 18px; }
+    .kitchen-badges-track { margin-inline: -12px; padding-inline: 12px; }
+  }
+
+  @media (max-width: 370px) {
+    .rewards-grid { grid-template-columns: 1fr; }
+    .reward-card.is-featured { grid-column: 1; grid-template-columns: 43px 1fr; grid-template-rows: auto auto; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -753,6 +838,10 @@
     .profile-score-orbit i,
     .profile-level-track span,
     .profile-achievement,
-    .task-points-celebration { animation: none !important; }
+    .task-points-celebration,
+    .kitchen-badge,
+    .kitchen-badge-medal,
+    .reward-card,
+    .reward-celebration { animation: none !important; }
   }
 </style>

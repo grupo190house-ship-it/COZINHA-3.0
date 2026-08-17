@@ -3,6 +3,29 @@
   const App = (() => {
     const state = { token: '', user: null, acl: [], config: {}, enums: {}, lookups: null, notifications: [], currentModule: 'tarefas' };
     const tokenKey = 'cozinhaflow_token';
+    const rewardCatalog = [
+      { id: 'refri_lata', name: 'Refrigerante ou suco', description: 'Uma bebida individual gelada.', cost: 100, emoji: '🥤', tone: 'ice' },
+      { id: 'sobremesa', name: 'Sobremesa da casa', description: 'Um doce individual do dia.', cost: 120, emoji: '🍨', tone: 'berry' },
+      { id: 'batata_individual', name: 'Batata individual', description: 'Uma porção para aproveitar no intervalo.', cost: 150, emoji: '🍟', tone: 'gold' },
+      { id: 'pizza_brotinho', name: 'Pizza brotinho', description: 'Um sabor disponível escolhido pelo funcionário.', cost: 180, emoji: '🍕', tone: 'pizza' },
+      { id: 'descanso_30', name: '+30 min de descanso', description: 'Pausa extra combinada com a liderança.', cost: 200, emoji: '☕', tone: 'mint' },
+      { id: 'lanche_escolha', name: 'Lanche à escolha', description: 'Um hambúrguer individual do cardápio interno.', cost: 240, emoji: '🍔', tone: 'burger' },
+      { id: 'descanso_60', name: '+1 hora de descanso', description: 'Uma hora extra de descanso agendada.', cost: 320, emoji: '⏰', tone: 'violet' },
+      { id: 'combo_individual', name: 'Combo individual', description: 'Lanche, acompanhamento e bebida.', cost: 400, emoji: '🍔', tone: 'fire' },
+      { id: 'escolher_turno', name: 'Escolher o turno', description: 'Prioridade na escolha de um turno disponível.', cost: 500, emoji: '📅', tone: 'blue' },
+      { id: 'kit_house', name: 'Kit House exclusivo', description: 'Camisa ou boné da equipe, conforme disponibilidade.', cost: 600, emoji: '🧢', tone: 'ink' },
+      { id: 'folga_extra', name: 'Folga extra', description: 'Uma folga agendada com antecedência e aprovação.', cost: 800, emoji: '🏖️', tone: 'legend', featured: true }
+    ];
+    const kitchenLevels = [
+      { min: 0, name: 'Ajudante da Cozinha', emoji: '🍳', short: 'Ajudante' },
+      { min: 10, name: 'Mestre do Molho', emoji: '🍅', short: 'Molho' },
+      { min: 25, name: 'Guardião da Fritadeira', emoji: '🍗', short: 'Fritadeira' },
+      { min: 50, name: 'Rei da Chapa', emoji: '🍔', short: 'Chapa' },
+      { min: 90, name: 'Pizzaiolo de Ouro', emoji: '🍕', short: 'Pizzaiolo' },
+      { min: 140, name: 'Mestre do Crocante', emoji: '🔥', short: 'Crocante' },
+      { min: 220, name: 'Chef da House', emoji: '👨‍🍳', short: 'Chef' },
+      { min: 350, name: 'Lenda do Foodpark', emoji: '🏆', short: 'Lenda' }
+    ];
     const getToken = () => sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey) || '';
     const setToken = (token, remember) => {
       sessionStorage.removeItem(tokenKey); localStorage.removeItem(tokenKey);
@@ -166,6 +189,36 @@
         } catch (error) { UI.toast(error.message, 'danger'); }
         finally { UI.loading(button, false); }
       });
+      document.getElementById('view-perfil').addEventListener('click', async event => {
+        const redeemButton = event.target.closest('[data-reward-redeem]');
+        if (redeemButton) {
+          const reward = rewardCatalog.find(item => item.id === redeemButton.dataset.rewardRedeem);
+          if (!reward || redeemButton.disabled) return;
+          const confirmed = await UI.confirm('Resgatar recompensa', `Trocar ${reward.cost} pontos por “${reward.name}”? O pedido será enviado à liderança.`, 'Resgatar');
+          if (!confirmed) return;
+          UI.loading(redeemButton, true, 'Resgatando...');
+          try {
+            await server('pontos.resgatar', { rewardId: reward.id });
+            celebrateReward(reward);
+            UI.toast(`${reward.name} resgatado! A liderança recebeu seu pedido.`, 'success');
+            await window.ModuleLoaders.perfil();
+          } catch (error) { UI.toast(error.message, 'danger'); }
+          finally { UI.loading(redeemButton, false); }
+          return;
+        }
+        const deliverButton = event.target.closest('[data-reward-deliver]');
+        if (deliverButton) {
+          const confirmed = await UI.confirm('Marcar como entregue', 'Confirma que esta recompensa já foi entregue ao funcionário?', 'Confirmar entrega');
+          if (!confirmed) return;
+          UI.loading(deliverButton, true, 'Salvando...');
+          try {
+            await server('pontos.entregar', { id: deliverButton.dataset.rewardDeliver });
+            UI.toast('Recompensa marcada como entregue.', 'success');
+            await window.ModuleLoaders.perfil();
+          } catch (error) { UI.toast(error.message, 'danger'); }
+          finally { UI.loading(deliverButton, false); }
+        }
+      });
       document.getElementById('configForm')?.addEventListener('submit', async event => {
         event.preventDefault();
         const button = event.currentTarget.querySelector('button');
@@ -186,52 +239,106 @@
         const panel = document.getElementById('profilePointsPanel');
         if (!panel) return;
         try {
-          const rows = await server('tarefas.list');
-          renderProfilePoints(rows || []);
+          const [rows, redemptions] = await Promise.all([server('tarefas.list'), server('pontos.resgates')]);
+          renderProfileExperience(rows || [], redemptions || []);
         } catch (error) {
           panel.innerHTML = `<div class="profile-points-error"><span class="material-symbols-rounded">error</span>${UI.esc(error.message)}</div>`;
         }
       };
     }
-    function renderProfilePoints(rows) {
+    function renderProfileExperience(rows, redemptions) {
       const panel = document.getElementById('profilePointsPanel');
       if (!panel) return;
       const ownRows = rows.filter(task => !state.user?.id || String(task.RESPONSAVEL_ID) === String(state.user.id));
       const completed = ownRows.filter(task => task.STATUS === 'Concluída');
       const pointsFor = task => ({ Urgente: 3, Alta: 2, Normal: 1, Baixa: 1 }[task.PRIORIDADE] || 1);
-      const points = completed.reduce((total, task) => total + pointsFor(task), 0);
-      const levels = [
-        { min: 0, name: 'Começando', icon: 'rocket_launch' },
-        { min: 10, name: 'Em ritmo', icon: 'local_fire_department' },
-        { min: 25, name: 'Destaque', icon: 'workspace_premium' },
-        { min: 50, name: 'Campeão', icon: 'trophy' }
-      ];
+      const lifetimePoints = completed.reduce((total, task) => total + pointsFor(task), 0);
+      const ownRedemptions = redemptions.filter(item => String(item.USUARIO_ID) === String(state.user?.id));
+      const spentPoints = ownRedemptions.filter(item => item.STATUS !== 'Cancelado').reduce((total, item) => total + Number(item.PONTOS || 0), 0);
+      const balance = Math.max(0, lifetimePoints - spentPoints);
       let levelIndex = 0;
-      levels.forEach((candidate, index) => { if (points >= candidate.min) levelIndex = index; });
-      const level = levels[levelIndex];
-      const next = levels[levelIndex + 1];
-      const progress = next ? Math.min(100, Math.round(((points - level.min) / (next.min - level.min)) * 100)) : 100;
+      kitchenLevels.forEach((candidate, index) => { if (lifetimePoints >= candidate.min) levelIndex = index; });
+      const level = kitchenLevels[levelIndex];
+      const next = kitchenLevels[levelIndex + 1];
+      const progress = next ? Math.min(100, Math.round(((lifetimePoints - level.min) / (next.min - level.min)) * 100)) : 100;
       const today = UI.today();
       const doneToday = completed.filter(task => String(task.CONCLUIDO_EM || '').substring(0, 10) === today).length;
       const recent = completed.slice().sort((a, b) => String(b.CONCLUIDO_EM || '').localeCompare(String(a.CONCLUIDO_EM || ''))).slice(0, 3);
       panel.innerHTML = `
         <div class="profile-score-hero">
           <div class="profile-score-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
-          <div class="profile-level-icon"><span class="material-symbols-rounded">${level.icon}</span></div>
-          <div class="profile-score-copy"><small>Nível atual</small><strong>${UI.esc(level.name)}</strong><span>${next ? `${next.min - points} pontos para ${next.name}` : 'Você chegou ao nível máximo!'}</span></div>
-          <div class="profile-score-total"><strong>${points}</strong><span>pontos</span></div>
+          <div class="profile-level-icon profile-level-emoji">${level.emoji}</div>
+          <div class="profile-score-copy"><small>Selo atual</small><strong>${UI.esc(level.name)}</strong><span>${next ? `${next.min - lifetimePoints} pontos para ${next.name}` : 'Você conquistou todos os selos!'}</span></div>
+          <div class="profile-score-total"><strong>${balance}</strong><span>saldo</span></div>
         </div>
         <div class="profile-level-track"><span style="width:${progress}%"></span></div>
         <div class="profile-score-stats">
           <div><span class="material-symbols-rounded">task_alt</span><strong>${completed.length}</strong><small>Concluídas</small></div>
           <div><span class="material-symbols-rounded">today</span><strong>${doneToday}</strong><small>Hoje</small></div>
-          <div><span class="material-symbols-rounded">bolt</span><strong>${completed.filter(task => task.PRIORIDADE === 'Urgente').length}</strong><small>Urgentes</small></div>
+          <div><span class="material-symbols-rounded">savings</span><strong>${lifetimePoints}</strong><small>Ganhos</small></div>
         </div>
         <div class="profile-recent-head"><strong>Últimas conquistas</strong><small>Pontos entram após a aprovação da foto</small></div>
         <div class="profile-achievements">${recent.length ? recent.map((task, index) => `
           <div class="profile-achievement" style="--delay:${index * 70}ms">
             <span class="material-symbols-rounded">verified</span><div><strong>${UI.esc(task.TITULO)}</strong><small>${UI.date(task.CONCLUIDO_EM)}</small></div><b>+${pointsFor(task)}</b>
           </div>`).join('') : '<div class="profile-achievement-empty"><span class="material-symbols-rounded">emoji_events</span><span>Conclua sua primeira tarefa para começar.</span></div>'}</div>`;
+      renderKitchenBadges(lifetimePoints);
+      renderRewardsStore(balance);
+      renderRewardHistory(ownRedemptions, redemptions);
+    }
+    function renderKitchenBadges(points) {
+      const host = document.getElementById('profileBadgesPanel');
+      const unlocked = kitchenLevels.filter(level => points >= level.min).length;
+      host.innerHTML = `
+        <div class="profile-section-head"><div><small>Jornada da cozinha</small><strong>Seus selos</strong></div><span>${unlocked}/${kitchenLevels.length} desbloqueados</span></div>
+        <div class="kitchen-badges-track">${kitchenLevels.map((level, index) => {
+          const active = points >= level.min;
+          const nextTarget = Math.max(0, level.min - points);
+          return `<article class="kitchen-badge ${active ? 'is-unlocked' : 'is-locked'}" style="--delay:${index * 45}ms">
+            <div class="kitchen-badge-medal"><span>${active ? level.emoji : '🔒'}</span><i></i></div>
+            <strong>${UI.esc(level.name)}</strong>
+            <small>${active ? 'Conquistado' : `${nextTarget} pontos para liberar`}</small>
+          </article>`;
+        }).join('')}</div>`;
+    }
+    function renderRewardsStore(balance) {
+      const host = document.getElementById('profileRewardsStore');
+      host.innerHTML = `
+        <div class="profile-section-head rewards-head"><div><small>Troque seu esforço</small><strong>Loja de pontos</strong></div><span><b>${balance}</b> disponíveis</span></div>
+        <div class="reward-store-note"><span class="material-symbols-rounded">info</span>O pedido vai para a liderança combinar a entrega ou a data.</div>
+        <div class="rewards-grid">${rewardCatalog.map((reward, index) => {
+          const canRedeem = balance >= reward.cost;
+          return `<article class="reward-card tone-${reward.tone} ${reward.featured ? 'is-featured' : ''}" style="--delay:${index * 35}ms">
+            ${reward.featured ? '<span class="reward-featured-label">Recompensa máxima</span>' : ''}
+            <div class="reward-emoji">${reward.emoji}</div>
+            <div class="reward-copy"><strong>${UI.esc(reward.name)}</strong><small>${UI.esc(reward.description)}</small></div>
+            <div class="reward-price"><span class="material-symbols-rounded">stars</span>${reward.cost}</div>
+            <button type="button" data-reward-redeem="${reward.id}" ${canRedeem ? '' : 'disabled'}>${canRedeem ? 'Resgatar' : `Faltam ${reward.cost - balance}`}</button>
+          </article>`;
+        }).join('')}</div>`;
+    }
+    function renderRewardHistory(ownRedemptions, allRedemptions) {
+      const historyHost = document.getElementById('profileRewardHistory');
+      const orderedOwn = ownRedemptions.slice().sort((a, b) => String(b.CRIADO_EM || '').localeCompare(String(a.CRIADO_EM || '')));
+      historyHost.classList.toggle('d-none', !orderedOwn.length);
+      historyHost.innerHTML = orderedOwn.length ? `
+        <div class="profile-section-head"><div><small>Acompanhe seus pedidos</small><strong>Meus resgates</strong></div></div>
+        <div class="reward-history-list">${orderedOwn.slice(0, 6).map(item => `
+          <div class="reward-history-item"><span>${UI.esc(item.EMOJI || '🎁')}</span><div><strong>${UI.esc(item.RECOMPENSA_NOME)}</strong><small>${UI.date(item.CRIADO_EM)}</small></div><b class="status-${String(item.STATUS || 'Solicitado').toLowerCase()}">${UI.esc(item.STATUS || 'Solicitado')}</b></div>`).join('')}</div>` : '';
+      const adminHost = document.getElementById('profileAdminRewards');
+      const pending = state.user?.role === 'Administrador' ? allRedemptions.filter(item => item.STATUS === 'Solicitado') : [];
+      adminHost.classList.toggle('d-none', !pending.length);
+      adminHost.innerHTML = pending.length ? `
+        <div class="profile-section-head admin-reward-head"><div><small>Ação da liderança</small><strong>Pedidos para entregar</strong></div><span>${pending.length}</span></div>
+        <div class="admin-reward-list">${pending.map(item => `
+          <article><span>${UI.esc(item.EMOJI || '🎁')}</span><div><strong>${UI.esc(item.USUARIO_NOME)}</strong><small>${UI.esc(item.RECOMPENSA_NOME)} · ${item.PONTOS} pontos</small></div><button type="button" data-reward-deliver="${UI.esc(item.ID)}"><span class="material-symbols-rounded">redeem</span>Entregue</button></article>`).join('')}</div>` : '';
+    }
+    function celebrateReward(reward) {
+      const host = document.createElement('div');
+      host.className = 'reward-celebration';
+      host.innerHTML = `<div class="reward-celebration-emoji">${reward.emoji}</div><strong>Resgatado!</strong><span>${UI.esc(reward.name)}</span>${Array.from({ length: 10 }, (_, index) => `<i style="--i:${index}"></i>`).join('')}`;
+      document.body.appendChild(host);
+      setTimeout(() => host.remove(), 2100);
     }
     function setTheme(theme) {
       document.documentElement.dataset.theme = theme;
