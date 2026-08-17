@@ -73,7 +73,7 @@
       document.getElementById('loginScreen').classList.add('d-none');
       document.getElementById('appShell').classList.remove('d-none');
       await navigate('tarefas');
-      setTimeout(() => refreshPushRegistration().catch(() => {}), 700);
+      setTimeout(() => recoverPushDelivery().catch(() => {}), 700);
     }
     function renderShell() {
       const config = state.config;
@@ -152,6 +152,7 @@
       window.addEventListener('resize', () => {
         if (window.innerWidth > 900) setMobileSidebar(false);
       });
+      window.addEventListener('online', () => recoverPushDelivery().catch(() => {}));
       const savedTheme = localStorage.getItem('cozinhaflow_theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
       setTheme(savedTheme);
       document.getElementById('themeToggle').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
@@ -473,6 +474,18 @@
       localStorage.setItem('cozinhaflow_push_public_key', vapidKey);
       localStorage.setItem(`cozinhaflow_push_ready_${state.user?.id}`, new Date().toISOString());
       return true;
+    }
+    let pushRecoveryPromise = null;
+    async function recoverPushDelivery() {
+      if (!state.user || !navigator.onLine) return false;
+      if (pushRecoveryPromise) return pushRecoveryPromise;
+      pushRecoveryPromise = (async () => {
+        await refreshPushRegistration().catch(() => false);
+        await server('notificacoes.refresh').catch(() => ({ retried: 0, delivered: 0 }));
+        return true;
+      })();
+      try { return await pushRecoveryPromise; }
+      finally { pushRecoveryPromise = null; }
     }
     async function enablePushNotifications(button) {
       if (isIos() && !isStandalone()) { openIosInstallHelp(); return; }

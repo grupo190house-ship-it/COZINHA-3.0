@@ -1,4 +1,7 @@
 /* Web Push gratuito: recebe avisos no iPhone, Android e computador. */
+self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+
 self.addEventListener('push', event => {
   let payload = {};
   try { payload = event.data?.json?.() || {}; } catch { payload = { body: event.data?.text?.() || '' }; }

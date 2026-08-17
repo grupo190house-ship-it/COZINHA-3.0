@@ -4,7 +4,8 @@ const FIREBASE_JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/se
 const MAX_REQUEST_BYTES = 8192;
 const MAX_RECIPIENTS = 20;
 const MAX_DEVICES = 50;
-const MAX_NOTIFICATION_AGE_MS = 15 * 60 * 1000;
+const MAX_NOTIFICATION_AGE_MS = 24 * 60 * 60 * 1000;
+const MAX_DELIVERY_ATTEMPTS = 8;
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -109,15 +110,17 @@ function databasePath(path) {
 }
 
 async function databaseRequest(env, token, method, path, body) {
-  const response = await fetch(`${env.FIREBASE_DATABASE_URL}/${databasePath(path)}.json`, {
+  const url = new URL(`${env.FIREBASE_DATABASE_URL}/${databasePath(path)}.json`);
+  url.searchParams.set('auth', token);
+  const response = await fetch(url, {
     method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' })
-    },
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     ...(body === undefined ? {} : { body: JSON.stringify(body) })
   });
-  if (!response.ok) throw new HttpError(response.status === 401 || response.status === 403 ? 403 : 502, 'O Firebase recusou a operação.');
+  if (!response.ok) {
+    console.error(JSON.stringify({ event: 'firebase_database_error', method, path, status: response.status }));
+    throw new HttpError(response.status === 401 || response.status === 403 ? 403 : 502, 'O Firebase recusou a operação.');
+  }
   if (response.status === 204) return null;
   return response.json();
 }
@@ -188,7 +191,9 @@ async function handleSend(request, origin, env) {
   ]);
   if (!profile || profile.STATUS !== 'Ativo') throw new HttpError(403, 'Usuário sem permissão.');
   if (!notification || notification.ID !== notificationId || !queue) throw new HttpError(404, 'Notificação não encontrada.');
-  if (queue.STATUS !== 'Pendente') return json({ ok: true, duplicate: true }, 200, origin, env);
+  const retryableStatuses = new Set(['Pendente', 'Erro', 'Sem aparelhos']);
+  if (!retryableStatuses.has(queue.STATUS)) return json({ ok: true, duplicate: true }, 200, origin, env);
+  if (Number(queue.TENTATIVAS || 0) >= MAX_DELIVERY_ATTEMPTS) throw new HttpError(409, 'Limite de tentativas atingido.');
   const createdAt = new Date(notification.CRIADO_EM).getTime();
   if (!Number.isFinite(createdAt) || Math.abs(Date.now() - createdAt) > MAX_NOTIFICATION_AGE_MS) throw new HttpError(409, 'Notificação fora do prazo de envio.');
   const recipients = [...new Set((Array.isArray(notification.DESTINATARIOS) ? notification.DESTINATARIOS : []).map(String).filter(Boolean))];
@@ -208,10 +213,14 @@ async function handleSend(request, origin, env) {
     failed: results.filter(result => result.status === 'failed').length,
     ignored: results.filter(result => result.status === 'ignored').length
   };
+  const hasRegisteredDevice = devices.length > 0;
+  const delivered = summary.sent > 0;
   await databaseRequest(env, token, 'PATCH', `cozinhaflow/v1/push_queue/${notificationId}`, {
-    STATUS: summary.failed > 0 && summary.sent === 0 ? 'Erro' : 'Enviado',
-    ENVIADO_EM: new Date().toISOString(),
-    TENTATIVAS: Number(queue.TENTATIVAS || 0) + 1,
+    STATUS: delivered ? 'Enviado' : hasRegisteredDevice ? 'Erro' : 'Sem aparelhos',
+    ENVIADO_EM: delivered ? new Date().toISOString() : null,
+    ATUALIZADO_EM: new Date().toISOString(),
+    ERRO: delivered ? null : hasRegisteredDevice ? 'O serviço do telefone não confirmou a entrega.' : 'Nenhum telefone ativado para o destinatário.',
+    TENTATIVAS: Number(queue.TENTATIVAS || 0) + (hasRegisteredDevice ? 1 : 0),
     RESULTADO: summary
   });
   console.log(JSON.stringify({ event: 'push_delivery', notificationId, actorUid: identity.sub, ...summary }));
