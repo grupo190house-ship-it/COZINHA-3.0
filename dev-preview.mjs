@@ -89,6 +89,9 @@ function compose() {
         {ID:'t5',TITULO:'Higienizar área do fogão',DESCRICAO:'Retirar gordura e resíduos ao redor dos queimadores.',RESPONSAVEL_ID:'u2',RESPONSAVEL_NOME:'Lucas Almeida',PRIORIDADE:'Alta',PRAZO:'2026-08-16T19:30',STATUS:'Aguardando aprovação',CRIADO_POR_NOME:'Marina Souza',ENVIADO_REVISAO_EM:previewNow,OBSERVACAO_CONCLUSAO:'Área pronta para o fechamento.',TEM_FOTO:true,FOTO_THUMBNAIL_URL:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22320%22%3E%3Crect width=%22600%22 height=%22320%22 fill=%22%23d9d5e8%22/%3E%3Crect x=%2270%22 y=%2270%22 width=%22460%22 height=%22180%22 rx=%2220%22 fill=%22%239b92b8%22/%3E%3Ccircle cx=%22200%22 cy=%22160%22 r=%2250%22 fill=%22%235f5875%22/%3E%3Ccircle cx=%22400%22 cy=%22160%22 r=%2250%22 fill=%22%235f5875%22/%3E%3C/svg%3E',CRIADO_EM:previewNow},
         {ID:'t3',TITULO:'Higienizar bancada de montagem',DESCRICAO:'',RESPONSAVEL_ID:'u2',RESPONSAVEL_NOME:'Lucas Almeida',PRIORIDADE:'Normal',PRAZO:'2026-07-29T11:00',STATUS:'Concluída',CRIADO_POR_NOME:'Marina Souza',INICIADO_EM:'2026-07-29T10:00:00',CONCLUIDO_EM:'2026-07-29T10:35:00',OBSERVACAO_CONCLUSAO:'Bancada liberada para o próximo turno.',TEM_FOTO:true,CRIADO_EM:previewNow}
       ],
+      'pontos.resgates':[
+        {ID:'r1',RECOMPENSA_ID:'pizza_brotinho',RECOMPENSA_NOME:'Pizza brotinho',EMOJI:'🍕',PONTOS:180,USUARIO_ID:'u2',USUARIO_NOME:'Lucas Almeida',STATUS:'Solicitado',CRIADO_EM:previewNow}
+      ],
       'usuarios.list':[
         {id:'u1',name:'Marina Souza',email:'admin@cozinha.local',role:'Administrador',status:'Ativo',lastAccess:previewNow},
         {id:'u2',name:'Lucas Almeida',email:'lucas@cozinha.local',role:'Operador',status:'Ativo',lastAccess:previewNow},
@@ -101,6 +104,8 @@ function compose() {
       if(action==='dashboard.get') return previewDashboard;
       if(action==='compras.refresh') return {created:0,updated:2};
       if(action==='tarefas.list' && previewWorkerMode) return previewRows[action].filter(row=>row.RESPONSAVEL_ID==='u2');
+      if(action==='pontos.resgates' && previewWorkerMode) return previewRows[action].filter(row=>row.USUARIO_ID==='u2');
+      if(action==='pontos.resgatar' || action==='pontos.entregar' || action==='pontos.recompensa.salvar') return {ok:true};
       if(action==='tarefas.evidence') return {title:'Comprovante da tarefa',dataUrl:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22320%22%3E%3Crect width=%22600%22 height=%22320%22 fill=%22%23d9d5e8%22/%3E%3C/svg%3E',operator:'Lucas Almeida',completedAt:previewNow,observation:'Foto de demonstração'};
       return previewRows[action] || [];
     };
