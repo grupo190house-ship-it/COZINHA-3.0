@@ -30,4 +30,15 @@ assert.equal(averageInputCost, 34);
 assert.equal(productionCost, 340);
 assert.equal(unitCost, 6.8);
 
-console.log('Regras válidas: rendimento 10 kg → 50 pacotes de 180 g e custo médio R$ 6,80/pacote.');
+const appSource = fs.readFileSync(path.join(root, 'app-js.html'), 'utf8');
+const levelBlock = appSource.match(/const kitchenLevels = \[([\s\S]*?)\n    \];/)?.[1] || '';
+const badgeThresholds = [...levelBlock.matchAll(/min:\s*(\d+)/g)].map(match => Number(match[1]));
+assert.deepEqual(badgeThresholds, [0, 60, 150, 300, 550, 900, 1500, 2500]);
+
+const firebaseSource = fs.readFileSync(path.join(root, 'firebase-adapter.html'), 'utf8');
+assert.match(firebaseSource, /origin:'ATRASO'/);
+assert.match(firebaseSource, /origin:'NAO_REALIZADA'/);
+assert.match(firebaseSource, /'pontos\.punir'/);
+assert.match(firebaseSource, /'push\.register'/);
+
+console.log('Regras válidas: produção, 8 selos progressivos, punições por atraso e cadastro de notificações.');

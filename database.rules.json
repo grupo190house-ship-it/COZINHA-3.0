@@ -16,6 +16,20 @@
             ".write": "auth != null && (auth.uid === $uid || root.child('cozinhaflow/v1/users').child(auth.uid).child('PERFIL').val() === 'Administrador')"
           }
         },
+        "push_tokens": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || root.child('cozinhaflow/v1/users').child(auth.uid).child('PERFIL').val() === 'Administrador')",
+            ".write": "auth != null && (auth.uid === $uid || root.child('cozinhaflow/v1/users').child(auth.uid).child('PERFIL').val() === 'Administrador')"
+          }
+        },
+        "pontos_ajustes": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('cozinhaflow/v1/users').child(auth.uid).child('PERFIL').val() === 'Administrador'"
+        },
+        "pontos_catalogo": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('cozinhaflow/v1/users').child(auth.uid).child('PERFIL').val() === 'Administrador'"
+        },
         "$collection": {
           ".read": "auth != null",
           ".write": "auth != null && root.child('cozinhaflow/v1/users').child(auth.uid).child('STATUS').val() === 'Ativo'"
