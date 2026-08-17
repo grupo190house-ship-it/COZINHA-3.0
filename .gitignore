@@ -2,6 +2,8 @@
 node_modules/
 coverage/
 *.log
+worker/dist/
+worker/worker-configuration.d.ts
 
 # Credenciais e vínculo privado do Google Apps Script
 .clasp.json

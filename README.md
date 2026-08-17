@@ -13,6 +13,8 @@ O administrador escreve a atividade, escolhe o funcionário e define prioridade 
 - Cadastro de funcionários pelo administrador.
 - Cada funcionário visualiza somente as tarefas atribuídas a ele.
 - Fotos de conclusão armazenadas no Google Drive pelo fluxo já configurado.
+- Notificações Web Push reais no iPhone e Android, enviadas por um Cloudflare Worker gratuito.
+- Pontos, selos, recompensas e punições por atraso ou decisão administrativa.
 - Perfis principais: Administrador, Supervisor e Funcionário.
 - Interface responsiva com navegação inferior no celular.
 
@@ -24,6 +26,8 @@ O administrador escreve a atividade, escolhe o funcionário e define prioridade 
 - HTML, CSS e JavaScript sem etapa de compilação
 - `clasp` para sincronização com o Apps Script
 - Node.js para preview e validações
+- Firebase Authentication e Realtime Database no plano gratuito
+- Cloudflare Workers Free para o envio seguro de notificações
 
 ## Começar
 
@@ -115,6 +119,7 @@ Acesse `http://127.0.0.1:41739`.
 ├── appsscript.json            # manifesto e permissões Google
 ├── dev-preview.mjs            # preview local com dados simulados
 ├── scripts/                   # validações automatizadas
+├── worker/                    # serviço gratuito de notificações Web Push
 ├── docs/                      # arquitetura, dados e implantação
 └── .github/                   # CI, issues e pull requests
 ```

@@ -3,8 +3,8 @@
   const App = (() => {
     const state = { token: '', user: null, acl: [], config: {}, enums: {}, lookups: null, notifications: [], currentModule: 'tarefas' };
     const tokenKey = 'cozinhaflow_token';
-    const defaultPushVapidPublicKey = 'BGqSNGYZ-HddJ0w8yovAl1GynknDxTmHIHo-Hw1nl4G5R7Zt0tGMXDxskOOauRqXxGgbBtmPJdZxVPU1mRlxG5o';
-    const pushVapidPublicKey = () => String(state.config?.PUSH_VAPID_PUBLIC_KEY || defaultPushVapidPublicKey).trim();
+    const defaultPushVapidPublicKey = 'BMDbR5rIC8H6ChH8naPo3k8SUGSAoLAt1F8fVXmPA3u2TMZACeV044jC_DbXy2jbkDLzYEEc7ZwBbZK_cKAFEh0';
+    const pushVapidPublicKey = () => defaultPushVapidPublicKey;
     const defaultRewardCatalog = [
       { id: 'refri_lata', name: 'Refrigerante ou suco', description: 'Uma bebida individual gelada.', cost: 100, emoji: '🥤', tone: 'ice' },
       { id: 'sobremesa', name: 'Sobremesa da casa', description: 'Um doce individual do dia.', cost: 120, emoji: '🍨', tone: 'berry' },
@@ -200,8 +200,6 @@
         if (pushButton) { await enablePushNotifications(pushButton); return; }
         const pushHelpButton = event.target.closest('[data-push-ios-help]');
         if (pushHelpButton) { openIosInstallHelp(); return; }
-        const pushConfigButton = event.target.closest('[data-push-config]');
-        if (pushConfigButton) { openPushConfigForm(); return; }
         const addRewardButton = event.target.closest('[data-reward-add]');
         if (addRewardButton) { openRewardForm(); return; }
         const editRewardButton = event.target.closest('[data-reward-edit]');
@@ -423,7 +421,7 @@
       localStorage.setItem(key, String(latest.ID));
       setTimeout(() => animatePointLoss(Math.abs(Number(latest.PONTOS)), ''), 280);
     }
-    const pushSupported = () => 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window && typeof window.firebase?.messaging === 'function';
+    const pushSupported = () => 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window;
     const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     function renderPushSettings() {
@@ -431,11 +429,9 @@
       if (!host) return;
       const supported = pushSupported(), permission = supported ? Notification.permission : 'unsupported';
       const iosNeedsInstall = isIos() && !isStandalone();
-      const configured = Boolean(pushVapidPublicKey());
       let icon = 'notifications_active', title = 'Notificações no telefone', copy = 'Receba tarefas novas, aprovações, devoluções e perdas de pontos.', action = '';
       if (!supported) { icon = 'notifications_off'; copy = 'Este navegador não oferece notificações. Atualize o navegador do telefone.'; }
       else if (iosNeedsInstall) { icon = 'add_to_home_screen'; copy = 'No iPhone, adicione o app à Tela de Início antes de ativar.'; action = '<button type="button" data-push-ios-help>Como instalar</button>'; }
-      else if (!configured) { icon = 'settings_alert'; copy = state.user?.role === 'Administrador' ? 'Falta cadastrar a chave pública do Firebase para liberar os avisos reais.' : 'A administração ainda está finalizando a configuração dos avisos.'; action = state.user?.role === 'Administrador' ? '<button type="button" data-push-config>Configurar</button>' : ''; }
       else if (permission === 'granted') { icon = 'notifications_active'; copy = 'Ativadas neste aparelho. Os avisos chegam mesmo com o app fechado.'; action = '<span class="push-enabled-badge"><i></i>Ativadas</span>'; }
       else if (permission === 'denied') { icon = 'notifications_off'; copy = 'Os avisos foram bloqueados. Libere “Notificações” nas configurações do telefone.'; }
       else action = '<button type="button" data-push-enable>Ativar notificações</button>';
@@ -444,8 +440,10 @@
     function openIosInstallHelp() {
       UI.openModal({ title: 'Ativar no iPhone', eyebrow: 'Leva menos de um minuto', size: 'sm', body: '<div class="ios-install-steps"><div><b>1</b><span>Abra este site no <strong>Safari</strong>.</span></div><div><b>2</b><span>Toque em <strong>Compartilhar</strong> na barra do navegador.</span></div><div><b>3</b><span>Escolha <strong>Adicionar à Tela de Início</strong>.</span></div><div><b>4</b><span>Abra o novo ícone e toque em <strong>Ativar notificações</strong>.</span></div></div>', footer: '<button type="button" class="btn btn-primary w-100" data-bs-dismiss="modal">Entendi</button>' });
     }
-    function openPushConfigForm() {
-      UI.openModal({ title: 'Configurar notificações', eyebrow: 'Firebase Cloud Messaging', size: 'sm', formId: 'pushConfigForm', submitText: 'Salvar e ativar', body: `<form id="pushConfigForm" class="point-penalty-form"><div class="penalty-warning push-config-info"><span class="material-symbols-rounded">key</span><div><strong>Chave pública Web Push</strong><small>Cole a chave VAPID gerada no Firebase Console. Ela é pública e segura para ficar no app.</small></div></div><div><label class="form-label">Chave pública</label><textarea name="PUSH_VAPID_PUBLIC_KEY" class="form-control" rows="3" minlength="80" placeholder="B..." required>${UI.esc(pushVapidPublicKey())}</textarea></div></form>`, onSubmit: async form => { state.config = await server('config.save', { PUSH_VAPID_PUBLIC_KEY: String(form.PUSH_VAPID_PUBLIC_KEY || '').trim() }); renderPushSettings(); UI.toast('Chave salva. Agora ative as notificações neste telefone.', 'success'); } });
+    function applicationServerKey(value) {
+      const padding = '='.repeat((4 - value.length % 4) % 4);
+      const binary = atob((value + padding).replace(/-/g, '+').replace(/_/g, '/'));
+      return Uint8Array.from(binary, character => character.charCodeAt(0));
     }
     function pushDeviceId() {
       const key = 'cozinhaflow_push_device';
@@ -462,25 +460,22 @@
       if (permission !== 'granted') return false;
       const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' });
       await navigator.serviceWorker.ready;
-      const messaging = firebase.messaging();
-      const token = await messaging.getToken({ vapidKey, serviceWorkerRegistration: registration });
-      if (!token) throw new Error('O telefone não forneceu o código de notificação. Tente novamente.');
-      await server('push.register', { token, deviceId: pushDeviceId(), platform: isIos() ? 'iOS' : /android/i.test(navigator.userAgent) ? 'Android' : 'Web', userAgent: navigator.userAgent });
-      if (!window.__cozinhaPushForegroundBound) {
-        window.__cozinhaPushForegroundBound = true;
-        messaging.onMessage(payload => {
-          const title = payload.notification?.title || payload.data?.title || 'CozinhaFlow';
-          const body = payload.notification?.body || payload.data?.body || 'Você recebeu uma atualização.';
-          registration.showNotification(title, { body, icon: './app-icon-192.png', badge: './app-icon-192.png', tag: payload.data?.notificationId || 'cozinhaflow', data: { url: './' }, vibrate: [120, 60, 120] });
-          UI.toast(`${title}: ${body}`);
-        });
+      const savedKey = localStorage.getItem('cozinhaflow_push_public_key');
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription && savedKey !== vapidKey) {
+        await subscription.unsubscribe().catch(() => false);
+        subscription = null;
       }
+      if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: applicationServerKey(vapidKey) });
+      const serialized = subscription?.toJSON?.();
+      if (!serialized?.endpoint || !serialized?.keys?.p256dh || !serialized?.keys?.auth) throw new Error('O telefone não forneceu o código de notificação. Tente novamente.');
+      await server('push.register', { subscription: serialized, deviceId: pushDeviceId(), platform: isIos() ? 'iOS' : /android/i.test(navigator.userAgent) ? 'Android' : 'Web', userAgent: navigator.userAgent });
+      localStorage.setItem('cozinhaflow_push_public_key', vapidKey);
       localStorage.setItem(`cozinhaflow_push_ready_${state.user?.id}`, new Date().toISOString());
       return true;
     }
     async function enablePushNotifications(button) {
       if (isIos() && !isStandalone()) { openIosInstallHelp(); return; }
-      if (!pushVapidPublicKey()) { state.user?.role === 'Administrador' ? openPushConfigForm() : UI.toast('A administração ainda precisa concluir a configuração.', 'warning'); return; }
       UI.loading(button, true, 'Ativando...');
       try { const active = await refreshPushRegistration(true); if (!active) throw new Error(Notification.permission === 'denied' ? 'As notificações estão bloqueadas nas configurações do telefone.' : 'Permissão de notificação não concedida.'); renderPushSettings(); UI.toast('Notificações reais ativadas neste telefone!', 'success'); }
       catch (error) { UI.toast(error.message, 'danger'); }
