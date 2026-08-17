@@ -58,6 +58,8 @@ var API_ROUTES_ = {
   'tarefas.save': { resource: 'tarefas', mutate: true, handler: saveTask_ },
   'tarefas.start': { resource: 'tarefas', mutate: true, handler: startTask_ },
   'tarefas.complete': { resource: 'tarefas', mutate: true, handler: completeTask_ },
+  'tarefas.approve': { resource: 'tarefas', mutate: true, handler: approveTask_ },
+  'tarefas.reject': { resource: 'tarefas', mutate: true, handler: rejectTask_ },
   'tarefas.cancel': { resource: 'tarefas', mutate: true, handler: cancelTask_ },
   'tarefas.reopen': { resource: 'tarefas', mutate: true, handler: reopenTask_ },
   'tarefas.evidence': { resource: 'tarefas', handler: getTaskEvidence_ },

@@ -31,15 +31,26 @@
     </article>
   </div>
 
+  <section id="taskAttentionPanel" class="task-attention-panel d-none" aria-labelledby="taskAttentionTitle">
+    <div class="task-attention-head">
+      <div><span class="material-symbols-rounded">crisis_alert</span><div><small>Visão do administrador</small><strong id="taskAttentionTitle">Precisa de atenção</strong></div></div>
+      <button id="clearAttentionFilter" class="btn btn-sm btn-light d-none" type="button">Mostrar todas</button>
+    </div>
+    <div id="taskAttentionItems" class="task-attention-items"></div>
+  </section>
+
   <div id="taskMobileTabs" class="task-mobile-tabs" role="tablist" aria-label="Etapas das tarefas">
     <button type="button" class="task-mobile-tab todo active" role="tab" aria-selected="true" data-task-mobile-status="A fazer">
       <span>A fazer</span><strong id="taskMobileTodoCount">0</strong>
     </button>
     <button type="button" class="task-mobile-tab doing" role="tab" aria-selected="false" data-task-mobile-status="Em andamento">
-      <span>Em andamento</span><strong id="taskMobileDoingCount">0</strong>
+      <span>Fazendo</span><strong id="taskMobileDoingCount">0</strong>
+    </button>
+    <button type="button" class="task-mobile-tab review" role="tab" aria-selected="false" data-task-mobile-status="Aguardando aprovação">
+      <span>Conferir</span><strong id="taskMobileReviewCount">0</strong>
     </button>
     <button type="button" class="task-mobile-tab done" role="tab" aria-selected="false" data-task-mobile-status="Concluída">
-      <span>Concluídas</span><strong id="taskMobileDoneCount">0</strong>
+      <span>Feitas</span><strong id="taskMobileDoneCount">0</strong>
     </button>
   </div>
 

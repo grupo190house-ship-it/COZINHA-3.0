@@ -78,6 +78,121 @@
   .task-card.is-completed .task-priority { opacity: .68; }
   .task-compact-label { display: none; }
   .team-mobile-list { display: none; }
+  .task-attention-panel {
+    margin: 0 0 14px;
+    padding: 14px;
+    border: 1px solid #e8e4f3;
+    border-radius: 17px;
+    background: linear-gradient(135deg, #fff 0%, #faf8ff 100%);
+    box-shadow: 0 7px 22px rgba(48, 39, 82, .06);
+  }
+  .task-board { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .task-column.review { border-top-color: #8b5cf6 !important; }
+  .task-column.review .task-column-title .material-symbols-rounded { color: #8b5cf6; }
+  .task-attention-head,
+  .task-attention-head > div { display: flex; align-items: center; gap: 9px; }
+  .task-attention-head { justify-content: space-between; margin-bottom: 11px; }
+  .task-attention-head > div > .material-symbols-rounded { color: #7146e8; font-size: 23px; }
+  .task-attention-head small,
+  .task-attention-head strong { display: block; }
+  .task-attention-head small { color: #9294a4; font-size: 8px; font-weight: 750; text-transform: uppercase; }
+  .task-attention-head strong { color: #292a3c; font-size: 15px; }
+  .task-attention-items { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .task-attention-item {
+    min-height: 62px;
+    display: grid;
+    grid-template-columns: 32px 1fr 18px;
+    align-items: center;
+    gap: 7px;
+    padding: 9px;
+    border: 1px solid #ece9f2;
+    border-radius: 13px;
+    background: #fff;
+    color: #66697b;
+    text-align: left;
+  }
+  .task-attention-item > .material-symbols-rounded:first-child { font-size: 20px; }
+  .task-attention-item > .material-symbols-rounded:last-child { font-size: 17px; opacity: .5; }
+  .task-attention-item strong,
+  .task-attention-item small { display: block; }
+  .task-attention-item strong { color: #2d2e40; font-size: 16px; line-height: 1; }
+  .task-attention-item small { margin-top: 4px; font-size: 9px; line-height: 1.15; }
+  .task-attention-item.review > .material-symbols-rounded:first-child { color: #7146e8; }
+  .task-attention-item.danger > .material-symbols-rounded:first-child { color: #dc3545; }
+  .task-attention-item.warning > .material-symbols-rounded:first-child { color: #d98212; }
+  .task-attention-item.returned > .material-symbols-rounded:first-child { color: #d55b86; }
+  .task-attention-item.active { border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139,92,246,.12); }
+  .task-review-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #7146e8;
+    font-size: 9px;
+    font-weight: 800;
+  }
+  .task-review-label .material-symbols-rounded { font-size: 15px; }
+  .task-photo-thumbnail {
+    width: 100%;
+    position: relative;
+    display: block;
+    margin-top: 11px;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 12px;
+    background: #eceaf2;
+  }
+  .task-photo-thumbnail img { width: 100%; height: 132px; display: block; object-fit: cover; }
+  .task-photo-thumbnail > span {
+    position: absolute;
+    right: 7px;
+    bottom: 7px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 7px;
+    border-radius: 8px;
+    background: rgba(24, 25, 36, .75);
+    color: #fff;
+    font-size: 8.5px;
+    font-weight: 750;
+  }
+  .task-photo-thumbnail .material-symbols-rounded { font-size: 14px; }
+  .task-card-schedule em { display: block; margin-top: 3px; color: #999baa; font-size: 8px; font-style: normal; }
+  .task-card-schedule .is-warning strong { color: #d98212; }
+  .task-recurrence { display: flex; align-items: center; gap: 5px; margin-top: 9px; color: #7146e8; font-size: 9px; font-weight: 750; }
+  .task-recurrence .material-symbols-rounded { font-size: 15px; }
+  .task-review-returned {
+    display: flex;
+    gap: 9px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid rgba(213,91,134,.22);
+    border-radius: 11px;
+    background: rgba(213,91,134,.07);
+    color: #8a3a59;
+  }
+  .task-review-returned > .material-symbols-rounded { font-size: 20px; }
+  .task-review-returned strong,
+  .task-review-returned span { display: block; }
+  .task-review-returned strong { font-size: 10.5px; }
+  .task-review-returned span { margin-top: 2px; font-size: 9.5px; line-height: 1.35; }
+  .task-recurrence-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; border: 1px solid #e8e4f3; border-radius: 13px; background: #faf8ff; }
+  .task-weekdays { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+  .task-weekdays > span { width: 100%; color: #626577; font-size: 10px; font-weight: 750; }
+  .task-weekdays label input { position: absolute; opacity: 0; }
+  .task-weekdays label span { min-width: 39px; height: 34px; display: grid; place-items: center; border: 1px solid #e3e0eb; border-radius: 9px; background: #fff; color: #747789; font-size: 10px; font-weight: 750; cursor: pointer; }
+  .task-weekdays label input:checked + span { border-color: #8b5cf6; background: #f0eaff; color: #7146e8; }
+  .task-camera-guide { display: flex; gap: 10px; padding: 12px; border: 1px solid rgba(22,163,106,.2); border-radius: 13px; background: rgba(22,163,106,.06); }
+  .task-camera-guide > .material-symbols-rounded { color: #159a68; font-size: 25px; }
+  .task-camera-guide small,
+  .task-camera-guide strong,
+  .task-camera-guide span { display: block; }
+  .task-camera-guide small { color: #159a68; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+  .task-camera-guide strong { margin-top: 2px; color: #303244; font-size: 11px; line-height: 1.35; }
+  .task-camera-guide span { margin-top: 4px; color: #858798; font-size: 9px; }
+  .task-reject-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .task-reject-presets button { padding: 6px 8px; border: 1px solid #e4e1eb; border-radius: 999px; background: #fff; color: #686b7d; font-size: 9px; font-weight: 700; }
   .task-photo-input {
     position: absolute;
     width: 1px;
@@ -191,13 +306,14 @@
       box-shadow: 0 5px 16px rgba(48, 39, 82, .07) !important;
       backdrop-filter: blur(14px) !important;
     }
+    .task-mobile-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
     .task-mobile-tab {
       min-height: 40px !important;
       gap: 5px !important;
       padding: 0 5px !important;
       border-radius: 10px !important;
       color: #777a8e !important;
-      font-size: 9.5px !important;
+      font-size: 8.5px !important;
       font-weight: 750 !important;
     }
     .task-mobile-tab.active {
@@ -286,7 +402,18 @@
     #refreshTasksButton .material-symbols-rounded { font-size: 20px !important; }
     .task-active-filters { margin: -1px 1px 9px; }
 
-    .task-board { margin-bottom: 8px !important; }
+    .task-attention-panel { margin-bottom: 9px; padding: 10px; border-radius: 15px; }
+    .task-attention-head { margin-bottom: 8px; }
+    .task-attention-items { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .task-attention-item { min-height: 52px; grid-template-columns: 27px 1fr 14px; padding: 7px; }
+    .task-attention-item strong { font-size: 14px; }
+    .task-attention-item small { font-size: 8px; }
+    .task-photo-thumbnail img { height: 150px; }
+    .task-recurrence-form { grid-template-columns: 1fr; }
+    .task-weekdays { grid-column: 1; }
+    .task-weekdays label span { min-width: 36px; }
+
+    .task-board { grid-template-columns: 1fr !important; margin-bottom: 8px !important; }
     .task-board > .task-column.mobile-active { padding: 0 !important; }
     .task-column-list { gap: 10px !important; }
     .task-card {
@@ -353,7 +480,7 @@
 
     #appModal .modal-dialog { margin: auto 0 0 !important; }
     #appModal .modal-content { max-height: 88dvh !important; border-radius: 22px 22px 0 0 !important; }
-    #appModal .modal-footer .btn-light { border: 1px solid #e1dfe8 !important; background: #fff !important; color: #66697b !important; }
+    #appModal .modal-footer .btn-light { display: inline-flex !important; align-items: center; justify-content: center; border: 1px solid #e1dfe8 !important; background: #fff !important; color: #66697b !important; -webkit-text-fill-color: #66697b !important; font-weight: 750 !important; text-indent: 0 !important; }
 
     /* Equipe: lista própria para celular, sem tabela larga ou controles de exportação. */
     #view-operadores { max-width: 620px; margin-inline: auto; }

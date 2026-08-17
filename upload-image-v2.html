@@ -29,7 +29,7 @@
     image.src = url;
   });
 
-  async function prepare(file) {
+  async function prepare(file, metadata = null) {
     if (!file) return null;
     if (file.size > MAX_FILE_BYTES) throw new Error('A imagem deve ter no máximo 5 MB.');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
@@ -41,7 +41,7 @@
     const width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
     const height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
 
-    if (scale === 1 && file.size <= 900 * 1024 && file.type === 'image/jpeg') {
+    if (!metadata && scale === 1 && file.size <= 900 * 1024 && file.type === 'image/jpeg') {
       return { name: file.name, mimeType: file.type, base64: await readDataUrl(file) };
     }
 
@@ -53,6 +53,21 @@
     context.fillRect(0, 0, width, height);
     context.drawImage(image, 0, 0, width, height);
 
+    if (metadata) {
+      const padding = Math.max(18, Math.round(width * 0.025));
+      const bandHeight = Math.max(92, Math.round(height * 0.15));
+      const titleSize = Math.max(18, Math.round(width * 0.027));
+      const detailSize = Math.max(14, Math.round(width * 0.019));
+      context.fillStyle = 'rgba(18, 20, 30, .78)';
+      context.fillRect(0, height - bandHeight, width, bandHeight);
+      context.fillStyle = '#ffffff';
+      context.font = `700 ${titleSize}px Arial, sans-serif`;
+      context.fillText(String(metadata.task || 'Tarefa concluída'), padding, height - bandHeight + padding + titleSize, width - padding * 2);
+      context.fillStyle = 'rgba(255,255,255,.85)';
+      context.font = `500 ${detailSize}px Arial, sans-serif`;
+      context.fillText(`${metadata.user || 'Funcionário'} · ${metadata.capturedAt || new Date().toLocaleString('pt-BR')}`, padding, height - padding, width - padding * 2);
+    }
+
     const baseName = String(file.name || 'foto').replace(/\.[^.]+$/, '') || 'foto';
     return {
       name: `${baseName}.jpg`,
@@ -61,10 +76,10 @@
     };
   }
 
-  UI.uploadImageDetails = async input => {
+  UI.uploadImageDetails = async (input, metadata = null) => {
     const file = input?.files?.[0];
     if (!file) return null;
-    const payload = await prepare(file);
+    const payload = await prepare(file, metadata);
     return App.server('media.upload', payload);
   };
 

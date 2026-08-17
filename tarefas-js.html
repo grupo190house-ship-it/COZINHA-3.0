@@ -4,9 +4,11 @@
     let assignees = [];
     let bound = false;
     let mobileStatus = 'A fazer';
+    let attentionFilter = '';
     const statuses = [
       { value: 'A fazer', title: 'A fazer', icon: 'assignment', tone: 'todo' },
       { value: 'Em andamento', title: 'Em andamento', icon: 'pending_actions', tone: 'doing' },
+      { value: 'Aguardando aprovação', title: 'Em conferência', icon: 'fact_check', tone: 'review' },
       { value: 'Concluída', title: 'Concluídas', icon: 'verified', tone: 'done' }
     ];
 
@@ -14,7 +16,26 @@
     const isOwner = task => String(task.RESPONSAVEL_ID) === String(App.state.user?.id);
     const isOverdue = task => task.PRAZO && !['Concluída', 'Cancelada'].includes(task.STATUS) &&
       new Date(task.PRAZO).getTime() < Date.now();
+    const isDueSoon = task => task.PRAZO && ['A fazer', 'Em andamento'].includes(task.STATUS) &&
+      new Date(task.PRAZO).getTime() >= Date.now() && new Date(task.PRAZO).getTime() - Date.now() <= 2 * 60 * 60 * 1000;
     const priorityTone = priority => ({ Urgente: 'urgent', Alta: 'high', Normal: 'normal', Baixa: 'low' }[priority] || 'normal');
+    const plural = (value, singular, pluralForm) => `${value} ${value === 1 ? singular : pluralForm}`;
+
+    function relativeDeadline(value) {
+      if (!value) return { text: 'Sem prazo', tone: '' };
+      const diffMinutes = Math.round((new Date(value).getTime() - Date.now()) / 60000);
+      const absolute = UI.date(value);
+      if (diffMinutes < 0) {
+        const elapsed = Math.abs(diffMinutes);
+        if (elapsed < 60) return { text: `Atrasada há ${plural(elapsed, 'minuto', 'minutos')}`, tone: 'danger', absolute };
+        if (elapsed < 1440) return { text: `Atrasada há ${plural(Math.floor(elapsed / 60), 'hora', 'horas')}`, tone: 'danger', absolute };
+        return { text: `Atrasada há ${plural(Math.floor(elapsed / 1440), 'dia', 'dias')}`, tone: 'danger', absolute };
+      }
+      if (diffMinutes < 60) return { text: `Vence em ${plural(Math.max(1, diffMinutes), 'minuto', 'minutos')}`, tone: 'warning', absolute };
+      if (diffMinutes < 1440) return { text: `Vence em ${plural(Math.floor(diffMinutes / 60), 'hora', 'horas')}`, tone: 'warning', absolute };
+      if (diffMinutes < 2880) return { text: 'Prazo amanhã', tone: '', absolute };
+      return { text: absolute, tone: '', absolute };
+    }
 
     async function load() {
       if (!bound) bind();
@@ -56,7 +77,12 @@
       const priority = document.getElementById('taskPriorityFilter').value;
       return tasks.filter(task => {
         const haystack = [task.TITULO, task.DESCRICAO, task.RESPONSAVEL_NOME].join(' ').toLowerCase();
-        return (!query || haystack.includes(query)) &&
+        const matchesAttention = !attentionFilter ||
+          (attentionFilter === 'review' && task.STATUS === 'Aguardando aprovação') ||
+          (attentionFilter === 'overdue' && isOverdue(task)) ||
+          (attentionFilter === 'returned' && task.REVISAO_STATUS === 'Devolvida') ||
+          (attentionFilter === 'soon' && isDueSoon(task));
+        return matchesAttention && (!query || haystack.includes(query)) &&
           (!assignee || String(task.RESPONSAVEL_ID) === String(assignee)) &&
           (!priority || task.PRIORIDADE === priority);
       });
@@ -83,6 +109,7 @@
       }).join('');
       renderMobileTabs(visible);
       renderActiveFilters();
+      renderAttentionPanel();
 
       const canceled = visible.filter(task => task.STATUS === 'Cancelada');
       document.getElementById('taskArchiveCount').textContent = canceled.length;
@@ -98,10 +125,30 @@
       document.getElementById('taskStatOverdue').textContent = tasks.filter(isOverdue).length;
     }
 
+    function renderAttentionPanel() {
+      const panel = document.getElementById('taskAttentionPanel');
+      panel.classList.toggle('d-none', !isAdmin());
+      if (!isAdmin()) return;
+      const items = [
+        { key: 'review', icon: 'photo_library', label: 'Fotos para conferir', count: tasks.filter(task => task.STATUS === 'Aguardando aprovação').length, tone: 'review' },
+        { key: 'overdue', icon: 'timer_off', label: 'Tarefas atrasadas', count: tasks.filter(isOverdue).length, tone: 'danger' },
+        { key: 'soon', icon: 'hourglass_top', label: 'Vencem em até 2h', count: tasks.filter(isDueSoon).length, tone: 'warning' },
+        { key: 'returned', icon: 'assignment_return', label: 'Fotos devolvidas', count: tasks.filter(task => task.REVISAO_STATUS === 'Devolvida').length, tone: 'returned' }
+      ];
+      document.getElementById('taskAttentionItems').innerHTML = items.map(item => `
+        <button type="button" class="task-attention-item ${item.tone} ${attentionFilter === item.key ? 'active' : ''}" data-attention-filter="${item.key}">
+          <span class="material-symbols-rounded">${item.icon}</span>
+          <span><strong>${item.count}</strong><small>${item.label}</small></span>
+          <span class="material-symbols-rounded">chevron_right</span>
+        </button>`).join('');
+      document.getElementById('clearAttentionFilter').classList.toggle('d-none', !attentionFilter);
+    }
+
     function renderMobileTabs(visible) {
       const countIds = {
         'A fazer': 'taskMobileTodoCount',
         'Em andamento': 'taskMobileDoingCount',
+        'Aguardando aprovação': 'taskMobileReviewCount',
         'Concluída': 'taskMobileDoneCount'
       };
       statuses.forEach(column => {
@@ -118,6 +165,10 @@
     function taskCard(task) {
       const overdue = isOverdue(task);
       const completed = task.STATUS === 'Concluída';
+      const awaitingReview = task.STATUS === 'Aguardando aprovação';
+      const deadlineInfo = completed
+        ? { text: task.PRAZO ? UI.date(task.PRAZO) : 'Sem prazo', tone: '', absolute: '' }
+        : relativeDeadline(task.PRAZO);
       const initials = String(task.RESPONSAVEL_NOME || '?').trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
       const description = task.DESCRICAO
         ? `<p class="task-card-description">${UI.esc(task.DESCRICAO)}</p>`
@@ -129,8 +180,12 @@
       if (task.STATUS === 'Em andamento' && isOwner(task)) {
         actions.push(taskAction('task_alt', 'Concluir com foto', 'complete', task.ID, 'primary'));
       }
-      if (task.STATUS === 'Concluída' && task.TEM_FOTO) {
+      if (['Aguardando aprovação', 'Concluída'].includes(task.STATUS) && task.TEM_FOTO && !task.FOTO_THUMBNAIL_URL) {
         actions.push(taskAction('photo_camera', 'Ver comprovante', 'evidence', task.ID, 'light'));
+      }
+      if (isAdmin() && awaitingReview) {
+        actions.push(taskAction('check_circle', 'Aprovar', 'approve', task.ID, 'success'));
+        actions.push(taskAction('add_a_photo', 'Pedir nova foto', 'reject', task.ID, 'light', true));
       }
       if (isAdmin() && ['A fazer', 'Em andamento'].includes(task.STATUS)) {
         actions.push(taskAction('edit', 'Editar', 'edit', task.ID, 'light', true));
@@ -144,18 +199,26 @@
           <div class="task-card-top">
             <span class="task-priority ${priorityTone(task.PRIORIDADE)}"><span></span>${UI.esc(task.PRIORIDADE || 'Normal')}</span>
             ${overdue ? '<span class="task-overdue-label"><span class="material-symbols-rounded">schedule</span>Atrasada</span>' : ''}
+            ${awaitingReview ? '<span class="task-review-label"><span class="material-symbols-rounded">fact_check</span>Conferir foto</span>' : ''}
             ${completed ? '<span class="task-completed-label"><span class="material-symbols-rounded">check_circle</span>Concluída</span>' : ''}
           </div>
           <h3>${UI.esc(task.TITULO)}</h3>
           ${description}
+          ${task.FOTO_THUMBNAIL_URL && ['Aguardando aprovação', 'Concluída'].includes(task.STATUS) ? `
+            <button type="button" class="task-photo-thumbnail" data-task-action="evidence" data-task-id="${UI.esc(task.ID)}" aria-label="Ampliar foto de ${UI.esc(task.TITULO)}">
+              <img src="${UI.esc(task.FOTO_THUMBNAIL_URL)}" alt="Comprovante de ${UI.esc(task.TITULO)}" loading="lazy">
+              <span><span class="material-symbols-rounded">zoom_in</span>Ampliar comprovante</span>
+            </button>` : ''}
           <div class="task-card-assignee">
             <span class="task-assignee-avatar">${UI.esc(initials)}</span>
             <div><small>Responsável</small><strong>${UI.esc(task.RESPONSAVEL_NOME)}</strong></div>
           </div>
           <div class="task-card-schedule">
-            <span class="${overdue ? 'is-danger' : ''}"><small>Prazo</small><strong><span class="material-symbols-rounded">event</span>${task.PRAZO ? UI.date(task.PRAZO) : 'Sem prazo'}</strong></span>
+            <span class="${deadlineInfo.tone ? `is-${deadlineInfo.tone}` : ''}" title="${UI.esc(deadlineInfo.absolute || '')}"><small>Prazo</small><strong><span class="material-symbols-rounded">event</span>${UI.esc(deadlineInfo.text)}</strong>${deadlineInfo.absolute && deadlineInfo.text !== deadlineInfo.absolute ? `<em>${UI.esc(deadlineInfo.absolute)}</em>` : ''}</span>
             ${completed ? `<span class="is-success"><small>Concluída em</small><strong><span class="material-symbols-rounded">check_circle</span>${UI.date(task.CONCLUIDO_EM)}</strong></span>` : ''}
           </div>
+          ${task.RECORRENCIA && task.RECORRENCIA !== 'Nenhuma' ? `<div class="task-recurrence"><span class="material-symbols-rounded">event_repeat</span>${UI.esc(task.RECORRENCIA)}${task.TURNO ? ` · ${UI.esc(task.TURNO)}` : ''}</div>` : ''}
+          ${task.REVISAO_STATUS === 'Devolvida' ? `<div class="task-review-returned"><span class="material-symbols-rounded">add_a_photo</span><div><strong>Nova foto solicitada</strong><span>${UI.esc(task.MOTIVO_REVISAO || 'Refaça a foto mostrando melhor o resultado.')}</span></div></div>` : ''}
           ${task.STATUS === 'Concluída' && task.OBSERVACAO_CONCLUSAO ? `<div class="task-completion-note"><strong>Observação:</strong> ${UI.esc(task.OBSERVACAO_CONCLUSAO)}</div>` : ''}
           ${actions.length ? `<div class="task-card-actions">${actions.join('')}</div>` : ''}
         </article>`;
@@ -249,6 +312,10 @@
               <label class="form-label">Orientações</label>
               <textarea name="DESCRICAO" class="form-control" rows="4" maxlength="1500" placeholder="Explique como a atividade deve ser realizada...">${UI.esc(task.DESCRICAO || '')}</textarea>
             </div>
+            <div class="col-12">
+              <label class="form-label">O que precisa aparecer na foto</label>
+              <input name="ORIENTACAO_FOTO" class="form-control" maxlength="300" value="${UI.esc(task.ORIENTACAO_FOTO || '')}" placeholder="Ex.: fotografe o forno inteiro e a parte interna">
+            </div>
             <div class="col-md-6">
               <label class="form-label">Operador responsável</label>
               <select name="RESPONSAVEL_ID" class="form-select" required>${UI.options(options, task.RESPONSAVEL_ID, 'Selecione o operador...')}</select>
@@ -263,13 +330,44 @@
               <label class="form-label">Prazo</label>
               <input name="PRAZO" type="datetime-local" class="form-control" value="${UI.esc(deadline)}">
             </div>
+            <div class="col-md-4">
+              <label class="form-label">Repetição</label>
+              <select id="taskRecurrence" name="RECORRENCIA" class="form-select">
+                ${['Nenhuma', 'Diária', 'Dias específicos'].map(value => `<option ${value === (task.RECORRENCIA || 'Nenhuma') ? 'selected' : ''}>${value}</option>`).join('')}
+              </select>
+            </div>
+            <div id="taskRecurrenceFields" class="col-12 ${!task.RECORRENCIA || task.RECORRENCIA === 'Nenhuma' ? 'd-none' : ''}">
+              <div class="task-recurrence-form">
+                <div><label class="form-label">Turno</label><select name="TURNO" class="form-select"><option value="">Sem turno</option>${['Abertura', 'Almoço', 'Fechamento'].map(value => `<option ${value === task.TURNO ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+                <div><label class="form-label">Horário limite</label><input name="RECORRENCIA_HORA" type="time" class="form-control" value="${UI.esc(task.RECORRENCIA_HORA || deadline.substring(11, 16) || '18:00')}"></div>
+                <div id="taskWeekdayFields" class="task-weekdays ${task.RECORRENCIA === 'Dias específicos' ? '' : 'd-none'}">
+                  <span>Repetir nestes dias</span>
+                  ${[['1','Seg'],['2','Ter'],['3','Qua'],['4','Qui'],['5','Sex'],['6','Sáb'],['0','Dom']].map(([value, label]) => `<label><input type="checkbox" name="RECORRENCIA_DIAS" value="${value}" ${String(task.RECORRENCIA_DIAS || '').split(',').includes(value) ? 'checked' : ''}><span>${label}</span></label>`).join('')}
+                </div>
+              </div>
+            </div>
           </form>`,
         onSubmit: async form => {
+          if (form.RECORRENCIA === 'Dias específicos' && (!form.RECORRENCIA_DIAS || !form.RECORRENCIA_DIAS.length)) {
+            throw new Error('Escolha pelo menos um dia da semana.');
+          }
+          if (form.RECORRENCIA !== 'Nenhuma') {
+            const date = String(form.PRAZO || `${UI.today()}T${form.RECORRENCIA_HORA || '18:00'}`).substring(0, 10);
+            form.PRAZO = `${date}T${form.RECORRENCIA_HORA || '18:00'}`;
+            form.OCORRENCIA_DATA = date;
+          }
           await App.server('tarefas.save', form);
           UI.toast(task.ID ? 'Tarefa atualizada.' : 'Tarefa enviada ao operador.');
           await load();
         }
       });
+      const recurrence = document.getElementById('taskRecurrence');
+      const recurrenceFields = document.getElementById('taskRecurrenceFields');
+      const weekdayFields = document.getElementById('taskWeekdayFields');
+      recurrence.onchange = () => {
+        recurrenceFields.classList.toggle('d-none', recurrence.value === 'Nenhuma');
+        weekdayFields.classList.toggle('d-none', recurrence.value !== 'Dias específicos');
+      };
     }
 
     async function startTask(task) {
@@ -296,13 +394,19 @@
               </div>
             </div>
             <div class="col-12">
+              <div class="task-camera-guide">
+                <span class="material-symbols-rounded">center_focus_strong</span>
+                <div><small>Mostre na foto</small><strong>${UI.esc(task.ORIENTACAO_FOTO || `o resultado completo de “${task.TITULO}”`)}</strong><span>A foto receberá automaticamente data, hora e seu nome.</span></div>
+              </div>
+            </div>
+            <div class="col-12">
               <label class="form-label">Foto da atividade concluída</label>
               <input id="taskEvidenceFile" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" class="task-photo-input" required>
               <label class="task-photo-picker" for="taskEvidenceFile">
                 <span class="material-symbols-rounded">photo_camera</span>
                 <span><strong>Tirar ou escolher foto</strong><small id="taskPhotoFileName">Nenhuma foto selecionada</small></span>
               </label>
-              <small class="form-text text-secondary">Tire uma foto nítida do resultado. Máximo de 5 MB.</small>
+              <small class="form-text text-secondary">Confira a prévia antes de enviar. Máximo de 5 MB.</small>
               <div id="taskPhotoPreview" class="task-photo-preview d-none"></div>
             </div>
             <div class="col-12">
@@ -318,7 +422,11 @@
           </form>`,
         onSubmit: async form => {
           if (form.CONFIRMADO !== true) throw new Error('Marque a confirmação de execução.');
-          const upload = await UI.uploadImageDetails(document.getElementById('taskEvidenceFile'));
+          const upload = await UI.uploadImageDetails(document.getElementById('taskEvidenceFile'), {
+            task: task.TITULO,
+            user: App.state.user?.name || task.RESPONSAVEL_NOME,
+            capturedAt: new Date().toLocaleString('pt-BR')
+          });
           if (!upload) throw new Error('A foto de conclusão é obrigatória.');
           await App.server('tarefas.complete', {
             id: task.ID,
@@ -326,8 +434,8 @@
             FOTO_ID: upload.id,
             OBSERVACAO_CONCLUSAO: form.OBSERVACAO_CONCLUSAO || ''
           });
-          mobileStatus = 'Concluída';
-          UI.toast('Tarefa concluída e comprovante registrado.');
+          mobileStatus = 'Aguardando aprovação';
+          UI.toast('Foto enviada. A tarefa está aguardando conferência.');
           await load();
         }
       });
@@ -339,7 +447,7 @@
         if (!file) { fileName.textContent = 'Nenhuma foto selecionada'; preview.classList.add('d-none'); preview.innerHTML = ''; return; }
         fileName.textContent = file.name;
         const url = URL.createObjectURL(file);
-        preview.innerHTML = `<img src="${url}" alt="Prévia da foto"><span>Foto selecionada</span>`;
+        preview.innerHTML = `<img src="${url}" alt="Prévia da foto"><span><strong>Foto pronta para enviar</strong><small>Toque em “Tirar ou escolher foto” para trocar.</small></span>`;
         preview.classList.remove('d-none');
       };
     }
@@ -369,6 +477,40 @@
       }
     }
 
+    async function approveTask(task) {
+      if (!await UI.confirm('Aprovar conclusão', `A foto de “${task.TITULO}” comprova que a tarefa foi executada?`, 'Aprovar tarefa')) return;
+      await App.server('tarefas.approve', { id: task.ID });
+      mobileStatus = 'Concluída';
+      UI.toast('Tarefa aprovada.');
+      await load();
+    }
+
+    function rejectTask(task) {
+      UI.openModal({
+        title: 'Pedir nova foto',
+        eyebrow: 'Devolução ao funcionário',
+        size: 'sm',
+        formId: 'taskRejectForm',
+        submitText: 'Devolver tarefa',
+        body: `<form id="taskRejectForm" class="row g-3">
+          <div class="col-12"><div class="task-complete-summary"><span class="material-symbols-rounded">add_a_photo</span><div><small>Tarefa</small><strong>${UI.esc(task.TITULO)}</strong></div></div></div>
+          <div class="col-12"><label class="form-label">O que precisa ser corrigido?</label><div class="task-reject-presets">
+            ${['Foto escura', 'Resultado incompleto', 'Não mostra a área inteira'].map(reason => `<button type="button" data-reject-reason="${UI.esc(reason)}">${UI.esc(reason)}</button>`).join('')}
+          </div><textarea name="reason" class="form-control mt-2" rows="3" maxlength="300" placeholder="Explique ao funcionário o que deve aparecer na nova foto..." required></textarea></div>
+        </form>`,
+        onSubmit: async form => {
+          await App.server('tarefas.reject', { id: task.ID, reason: form.reason });
+          mobileStatus = 'Em andamento';
+          UI.toast('Tarefa devolvida com a orientação para nova foto.', 'warning');
+          await load();
+        }
+      });
+      const textarea = document.querySelector('#taskRejectForm [name=reason]');
+      document.querySelectorAll('[data-reject-reason]').forEach(button => {
+        button.onclick = () => { textarea.value = button.dataset.rejectReason; textarea.focus(); };
+      });
+    }
+
     async function cancelTask(task) {
       if (!await UI.confirm('Cancelar tarefa', `Cancelar “${task.TITULO}”? O registro permanecerá no arquivo.`, 'Cancelar tarefa', true)) return;
       await App.server('tarefas.cancel', { id: task.ID });
@@ -392,6 +534,8 @@
         if (action === 'start') await startTask(task);
         if (action === 'complete') completeTask(task);
         if (action === 'evidence') await showEvidence(task);
+        if (action === 'approve') await approveTask(task);
+        if (action === 'reject') rejectTask(task);
         if (action === 'cancel') await cancelTask(task);
         if (action === 'reopen') await reopenTask(task);
       } catch (error) {
@@ -404,10 +548,21 @@
       document.getElementById('newTaskButton').onclick = () => openTaskForm();
       document.getElementById('refreshTasksButton').onclick = load;
       document.getElementById('taskFilterButton').onclick = openTaskFilters;
+      document.getElementById('clearAttentionFilter').onclick = () => { attentionFilter = ''; render(); };
       document.getElementById('taskSearch').addEventListener('input', UI.debounce(render, 120));
       document.getElementById('taskAssigneeFilter').onchange = render;
       document.getElementById('taskPriorityFilter').onchange = render;
       document.getElementById('view-tarefas').addEventListener('click', event => {
+        const attention = event.target.closest('[data-attention-filter]');
+        if (attention) {
+          attentionFilter = attentionFilter === attention.dataset.attentionFilter ? '' : attention.dataset.attentionFilter;
+          if (attentionFilter === 'review') mobileStatus = 'Aguardando aprovação';
+          if (attentionFilter === 'returned') mobileStatus = 'Em andamento';
+          if (attentionFilter === 'overdue') mobileStatus = tasks.find(isOverdue)?.STATUS || 'A fazer';
+          if (attentionFilter === 'soon') mobileStatus = tasks.find(isDueSoon)?.STATUS || 'A fazer';
+          render();
+          return;
+        }
         const clearFilter = event.target.closest('[data-clear-task-filter]');
         if (clearFilter) {
           const filter = clearFilter.dataset.clearTaskFilter;
@@ -417,6 +572,7 @@
         }
         const tab = event.target.closest('[data-task-mobile-status]');
         if (tab) {
+          attentionFilter = '';
           mobileStatus = tab.dataset.taskMobileStatus;
           render();
           return;
