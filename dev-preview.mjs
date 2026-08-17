@@ -105,7 +105,7 @@ function compose() {
       if(action==='compras.refresh') return {created:0,updated:2};
       if(action==='tarefas.list' && previewWorkerMode) return previewRows[action].filter(row=>row.RESPONSAVEL_ID==='u2');
       if(action==='pontos.resgates' && previewWorkerMode) return previewRows[action].filter(row=>row.USUARIO_ID==='u2');
-      if(action==='pontos.resgatar' || action==='pontos.entregar') return {ok:true};
+      if(action==='pontos.resgatar' || action==='pontos.entregar' || action==='pontos.recompensa.salvar') return {ok:true};
       if(action==='tarefas.evidence') return {title:'Comprovante da tarefa',dataUrl:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22320%22%3E%3Crect width=%22600%22 height=%22320%22 fill=%22%23d9d5e8%22/%3E%3C/svg%3E',operator:'Lucas Almeida',completedAt:previewNow,observation:'Foto de demonstração'};
       return previewRows[action] || [];
     };

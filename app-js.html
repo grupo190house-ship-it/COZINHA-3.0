@@ -3,7 +3,7 @@
   const App = (() => {
     const state = { token: '', user: null, acl: [], config: {}, enums: {}, lookups: null, notifications: [], currentModule: 'tarefas' };
     const tokenKey = 'cozinhaflow_token';
-    const rewardCatalog = [
+    const defaultRewardCatalog = [
       { id: 'refri_lata', name: 'Refrigerante ou suco', description: 'Uma bebida individual gelada.', cost: 100, emoji: '🥤', tone: 'ice' },
       { id: 'sobremesa', name: 'Sobremesa da casa', description: 'Um doce individual do dia.', cost: 120, emoji: '🍨', tone: 'berry' },
       { id: 'batata_individual', name: 'Batata individual', description: 'Uma porção para aproveitar no intervalo.', cost: 150, emoji: '🍟', tone: 'gold' },
@@ -16,6 +16,7 @@
       { id: 'kit_house', name: 'Kit House exclusivo', description: 'Camisa ou boné da equipe, conforme disponibilidade.', cost: 600, emoji: '🧢', tone: 'ink' },
       { id: 'folga_extra', name: 'Folga extra', description: 'Uma folga agendada com antecedência e aprovação.', cost: 800, emoji: '🏖️', tone: 'legend', featured: true }
     ];
+    let rewardCatalog = defaultRewardCatalog.slice();
     const kitchenLevels = [
       { min: 0, name: 'Ajudante da Cozinha', emoji: '🍳', short: 'Ajudante' },
       { min: 10, name: 'Mestre do Molho', emoji: '🍅', short: 'Molho' },
@@ -190,6 +191,14 @@
         finally { UI.loading(button, false); }
       });
       document.getElementById('view-perfil').addEventListener('click', async event => {
+        const addRewardButton = event.target.closest('[data-reward-add]');
+        if (addRewardButton) { openRewardForm(); return; }
+        const editRewardButton = event.target.closest('[data-reward-edit]');
+        if (editRewardButton) {
+          const reward = rewardCatalog.find(item => item.id === editRewardButton.dataset.rewardEdit);
+          if (reward) openRewardForm(reward);
+          return;
+        }
         const redeemButton = event.target.closest('[data-reward-redeem]');
         if (redeemButton) {
           const reward = rewardCatalog.find(item => item.id === redeemButton.dataset.rewardRedeem);
@@ -239,7 +248,8 @@
         const panel = document.getElementById('profilePointsPanel');
         if (!panel) return;
         try {
-          const [rows, redemptions] = await Promise.all([server('tarefas.list'), server('pontos.resgates')]);
+          const [rows, redemptions, catalog] = await Promise.all([server('tarefas.list'), server('pontos.resgates'), server('pontos.catalogo')]);
+          rewardCatalog = catalog?.length ? catalog : defaultRewardCatalog.slice();
           renderProfileExperience(rows || [], redemptions || []);
         } catch (error) {
           panel.innerHTML = `<div class="profile-points-error"><span class="material-symbols-rounded">error</span>${UI.esc(error.message)}</div>`;
@@ -285,6 +295,7 @@
       renderKitchenBadges(lifetimePoints);
       renderRewardsStore(balance);
       renderRewardHistory(ownRedemptions, redemptions);
+      renderRewardManager();
     }
     function renderKitchenBadges(points) {
       const host = document.getElementById('profileBadgesPanel');
@@ -306,7 +317,7 @@
       host.innerHTML = `
         <div class="profile-section-head rewards-head"><div><small>Troque seu esforço</small><strong>Loja de pontos</strong></div><span><b>${balance}</b> disponíveis</span></div>
         <div class="reward-store-note"><span class="material-symbols-rounded">info</span>O pedido vai para a liderança combinar a entrega ou a data.</div>
-        <div class="rewards-grid">${rewardCatalog.map((reward, index) => {
+        <div class="rewards-grid">${rewardCatalog.filter(reward => reward.status !== 'Inativo').map((reward, index) => {
           const canRedeem = balance >= reward.cost;
           return `<article class="reward-card tone-${reward.tone} ${reward.featured ? 'is-featured' : ''}" style="--delay:${index * 35}ms">
             ${reward.featured ? '<span class="reward-featured-label">Recompensa máxima</span>' : ''}
@@ -332,6 +343,41 @@
         <div class="profile-section-head admin-reward-head"><div><small>Ação da liderança</small><strong>Pedidos para entregar</strong></div><span>${pending.length}</span></div>
         <div class="admin-reward-list">${pending.map(item => `
           <article><span>${UI.esc(item.EMOJI || '🎁')}</span><div><strong>${UI.esc(item.USUARIO_NOME)}</strong><small>${UI.esc(item.RECOMPENSA_NOME)} · ${item.PONTOS} pontos</small></div><button type="button" data-reward-deliver="${UI.esc(item.ID)}"><span class="material-symbols-rounded">redeem</span>Entregue</button></article>`).join('')}</div>` : '';
+    }
+    function renderRewardManager() {
+      const host = document.getElementById('profileRewardManager');
+      const isAdmin = state.user?.role === 'Administrador';
+      host.classList.toggle('d-none', !isAdmin);
+      if (!isAdmin) { host.innerHTML = ''; return; }
+      host.innerHTML = `
+        <div class="profile-section-head reward-manager-head"><div><small>Controle da administradora</small><strong>Gerenciar loja</strong></div><button type="button" data-reward-add><span class="material-symbols-rounded">add</span>Nova</button></div>
+        <p class="reward-manager-intro">Edite o preço, os textos e a disponibilidade das recompensas.</p>
+        <div class="reward-manager-list">${rewardCatalog.map(reward => `
+          <button type="button" data-reward-edit="${UI.esc(reward.id)}"><span>${reward.emoji || '🎁'}</span><div><strong>${UI.esc(reward.name)}</strong><small>${reward.cost} pontos · ${UI.esc(reward.status || 'Ativo')}</small></div><span class="material-symbols-rounded">edit</span></button>`).join('')}</div>`;
+    }
+    function openRewardForm(reward = {}) {
+      const editing = Boolean(reward.id);
+      UI.openModal({
+        title: editing ? 'Editar recompensa' : 'Nova recompensa',
+        eyebrow: 'Loja de pontos',
+        size: 'sm',
+        formId: 'rewardAdminForm',
+        submitText: editing ? 'Salvar recompensa' : 'Adicionar à loja',
+        body: `<form id="rewardAdminForm" class="reward-admin-form">
+          <input type="hidden" name="ID" value="${UI.esc(reward.id || '')}">
+          <input type="hidden" name="TOM" value="${UI.esc(reward.tone || 'violet')}">
+          <div class="reward-admin-main-row"><div><label class="form-label">Emoji</label><input name="EMOJI" class="form-control reward-emoji-input" maxlength="8" value="${UI.esc(reward.emoji || '🎁')}" required></div><div><label class="form-label">Nome da recompensa</label><input name="NOME" class="form-control" maxlength="80" value="${UI.esc(reward.name || '')}" placeholder="Ex.: Vale açaí" required></div></div>
+          <div><label class="form-label">Descrição</label><textarea name="DESCRICAO" class="form-control" rows="3" maxlength="240" placeholder="Explique o que a pessoa receberá...">${UI.esc(reward.description || '')}</textarea></div>
+          <div class="reward-admin-options"><div><label class="form-label">Valor em pontos</label><input name="PONTOS" type="number" inputmode="numeric" min="1" max="99999" class="form-control" value="${UI.esc(reward.cost || 100)}" required></div><div><label class="form-label">Disponibilidade</label><select name="STATUS" class="form-select"><option ${reward.status !== 'Inativo' ? 'selected' : ''}>Ativo</option><option ${reward.status === 'Inativo' ? 'selected' : ''}>Inativo</option></select></div></div>
+          <label class="reward-feature-check"><input name="DESTAQUE" type="checkbox" class="form-check-input" ${reward.featured ? 'checked' : ''}><span><strong>Destacar na loja</strong><small>Mostra a recompensa em um cartão maior.</small></span></label>
+        </form>`,
+        onSubmit: async form => {
+          form.PONTOS = Number(form.PONTOS);
+          await server('pontos.recompensa.salvar', form);
+          UI.toast(editing ? 'Recompensa atualizada.' : 'Nova recompensa adicionada.', 'success');
+          await window.ModuleLoaders.perfil();
+        }
+      });
     }
     function celebrateReward(reward) {
       const host = document.createElement('div');

@@ -783,6 +783,29 @@
   .admin-reward-list small { margin-top: 2px; color: #8f91a0; font-size: 8px; }
   .admin-reward-list button { min-height: 35px; display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border: 0; border-radius: 10px; background: #7447db; color: #fff; font-size: 8px; font-weight: 800; }
   .admin-reward-list button .material-symbols-rounded { font-size: 15px; }
+  .profile-reward-manager { border-color: rgba(113,70,232,.18); }
+  .reward-manager-head { align-items: center; }
+  .reward-manager-head > button { min-height: 36px; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border: 0; border-radius: 11px; background: #7447db; color: #fff; font-size: 8.5px; font-weight: 850; }
+  .reward-manager-head > button .material-symbols-rounded { font-size: 16px; }
+  .reward-manager-intro { margin: -4px 0 10px; color: #8a8d9d; font-size: 8.5px; }
+  .reward-manager-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+  .reward-manager-list > button { min-width: 0; min-height: 52px; display: grid; grid-template-columns: 34px 1fr 18px; align-items: center; gap: 7px; padding: 7px; border: 1px solid #ece9f2; border-radius: 13px; background: #fbfafd; color: #696c7d; text-align: left; }
+  .reward-manager-list > button > span:first-child { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: #f0ecfa; font-size: 18px; }
+  .reward-manager-list strong,
+  .reward-manager-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .reward-manager-list strong { color: #424456; font-size: 9.5px; }
+  .reward-manager-list small { margin-top: 2px; color: #989aa8; font-size: 7.5px; }
+  .reward-manager-list .material-symbols-rounded { font-size: 17px; }
+  .reward-admin-form { display: grid; gap: 11px; }
+  .reward-admin-main-row { display: grid; grid-template-columns: 76px 1fr; gap: 9px; }
+  .reward-admin-options { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .reward-admin-form .form-label { margin-bottom: 5px; color: #5c5f70; font-size: 9.5px; font-weight: 800; }
+  .reward-emoji-input { text-align: center; font-size: 24px !important; }
+  .reward-feature-check { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border: 1px solid #e8e4f1; border-radius: 12px; background: #faf8ff; }
+  .reward-feature-check strong,
+  .reward-feature-check small { display: block; }
+  .reward-feature-check strong { color: #4b4d60; font-size: 10px; }
+  .reward-feature-check small { margin-top: 2px; color: #9294a3; font-size: 8px; }
   .reward-celebration { width: 210px; min-height: 210px; position: fixed; top: 50%; left: 50%; z-index: 2100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; border: 2px solid rgba(255,255,255,.45); border-radius: 50%; background: radial-gradient(circle at 35% 25%,#c064ff,#6231c7 72%); color: #fff; box-shadow: 0 30px 90px rgba(77,36,157,.48); text-align: center; transform: translate(-50%,-50%); animation: rewardCelebration 2s ease both; pointer-events: none; }
   .reward-celebration-emoji { font-size: 55px; animation: rewardEmojiDance .55s .2s ease both; }
   .reward-celebration strong { margin-top: 5px; font-size: 22px; }
@@ -825,6 +848,10 @@
     #view-perfil .page-head h1 { margin: 0 !important; font-size: 24px !important; }
     .profile-section-card { padding: 12px; border-radius: 18px; }
     .kitchen-badges-track { margin-inline: -12px; padding-inline: 12px; }
+    #appModal:has(.reward-admin-form) .modal-content { min-height: 0 !important; height: auto !important; max-height: 86dvh !important; }
+    #appModal:has(.reward-admin-form) .modal-dialog { margin: auto 0 0 !important; }
+    .reward-admin-form .form-control,
+    .reward-admin-form .form-select { min-height: 44px !important; border-radius: 11px !important; }
   }
 
   @media (max-width: 370px) {
