@@ -360,7 +360,7 @@
     function renderRewardsStore(balance) {
       const host = document.getElementById('profileRewardsStore');
       host.innerHTML = `
-        <div class="profile-section-head rewards-head"><div><small>Troque seu esforço</small><strong>Loja de pontos</strong></div><span><b>${balance}</b> disponíveis</span></div>
+        <div class="profile-section-head rewards-head"><div><small>Catálogo de prêmios</small><strong>Recompensas</strong></div><span><b>${balance}</b> disponíveis</span></div>
         <div class="reward-store-note"><span class="material-symbols-rounded">info</span>O pedido vai para a liderança combinar a entrega ou a data.</div>
         <div class="rewards-grid">${rewardCatalog.filter(reward => reward.status !== 'Inativo').map((reward, index) => {
           const canRedeem = balance >= reward.cost;
