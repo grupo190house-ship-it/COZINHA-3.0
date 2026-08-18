@@ -331,7 +331,15 @@
       renderWeeklyMissions(missions || []);
       showPendingPointLoss(ownAdjustments);
       const shopBalance = document.getElementById('shopBalancePanel');
-      if (shopBalance) shopBalance.innerHTML = `<span class="material-symbols-rounded">stars</span><div><small>Seu saldo disponível</small><strong>${balance} pontos</strong></div><button type="button" data-navigate="perfil">Ver jornada</button>`;
+      if (shopBalance) {
+        shopBalance.innerHTML = `
+          <span class="material-symbols-rounded">stars</span>
+          <div class="shop-balance-content">
+            <small>Seu saldo disponível</small>
+            <strong>${balance} <span>pontos</span></strong>
+          </div>
+          <button type="button" data-navigate="perfil">Ver jornada</button>`;
+      }
     }
     function renderWeeklyMissions(missions) {
       const host = document.getElementById('profileWeeklyMissions');
