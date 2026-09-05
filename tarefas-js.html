@@ -108,8 +108,10 @@
             <div class="task-column-list">
               ${rows.length ? rows.map(taskCard).join('') : `
                 <div class="task-column-empty">
-                  <span class="material-symbols-rounded">inbox</span>
+                  <span class="material-symbols-rounded">task_alt</span>
+                  <strong>Nada por aqui</strong>
                   <span>Nenhuma tarefa nesta etapa.</span>
+                  ${App.state.user?.role === 'Administrador' ? '<button type="button" data-empty-new-task><span class="material-symbols-rounded">add</span>Criar tarefa</button>' : ''}
                 </div>`}
             </div>
           </section>`;
@@ -644,6 +646,10 @@
       document.getElementById('taskAssigneeFilter').onchange = render;
       document.getElementById('taskPriorityFilter').onchange = render;
       document.getElementById('view-tarefas').addEventListener('click', event => {
+        if (event.target.closest('[data-empty-new-task]')) {
+          openTaskForm();
+          return;
+        }
         const attention = event.target.closest('[data-attention-filter]');
         if (attention) {
           attentionFilter = attentionFilter === attention.dataset.attentionFilter ? '' : attention.dataset.attentionFilter;

@@ -45,7 +45,8 @@
     function renderMobileList() {
       const list = document.getElementById('usersMobileList');
       if (!users.length) {
-        list.innerHTML = '<div class="team-mobile-empty"><span class="material-symbols-rounded">group_off</span><strong>Nenhum funcionário cadastrado</strong></div>';
+        list.innerHTML = '<div class="team-mobile-empty"><span class="material-symbols-rounded">group_add</span><strong>Monte sua equipe</strong><small>Cadastre a primeira pessoa para distribuir tarefas.</small><button type="button" data-empty-new-user><span class="material-symbols-rounded">add</span>Novo funcionário</button></div>';
+        list.querySelector('[data-empty-new-user]').onclick = () => openForm();
         return;
       }
       list.innerHTML = users.map(user => `
